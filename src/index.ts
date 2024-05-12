@@ -22,10 +22,20 @@ const { Elm } = require("./Main.elm");
 
 const WALLET_KEY = "WALLET";
 
-/* eslint-disable no-undef */
-// @ts-ignore
-const RPC = __RPC_URL;
-/* eslint-enable no-undef */
+const RPCS = [
+  "https://fullnode.mainnet.sui.io:443",
+  "https://mainnet.suiet.app",
+  "https://sui-mainnet-us-2.cosmostation.io",
+  "https://sui-mainnet-endpoint.blockvision.org",
+  "https://sui-mainnet.public.blastapi.io",
+  "https://sui-mainnet-rpc.allthatnode.com",
+  "https://sui-mainnet-eu-4.cosmostation.io",
+  "https://sui1mainnet-rpc.chainode.tech",
+  "https://mainnet.sui.rpcpool.com",
+  "https://sui-mainnet-ca-2.cosmostation.io",
+];
+
+const RPC = RPCS[Math.floor(Math.random() * RPCS.length)];
 
 const provider = new SuiClient({
   url: RPC,

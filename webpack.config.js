@@ -3,8 +3,6 @@ const webpack = require("webpack");
 
 const publicFolder = resolve("./public");
 
-const { RPC } = process.env;
-
 module.exports = (env) => {
   const devMode = Boolean(env.WEBPACK_SERVE);
 
@@ -54,11 +52,6 @@ module.exports = (env) => {
     resolve: {
       extensions: [".ts", ".js"],
     },
-    plugins: [
-      new webpack.NoEmitOnErrorsPlugin(),
-      new webpack.DefinePlugin({
-        __RPC_URL: JSON.stringify(RPC),
-      }),
-    ],
+    plugins: [new webpack.NoEmitOnErrorsPlugin()],
   };
 };
