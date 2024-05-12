@@ -15,7 +15,7 @@ import Utils exposing (..)
 
 
 startTime =
-    1715534935000
+    0
 
 
 view : Model -> Html Msg

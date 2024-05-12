@@ -21,6 +21,7 @@ import { Miner } from "./codegen/mineral/miner/structs";
 const { Elm } = require("./Main.elm");
 
 const WALLET_KEY = "WALLET";
+const MINE_KEY = "MINOOOR";
 
 const RPCS = [
   "https://fullnode.mainnet.sui.io:443",
@@ -51,6 +52,32 @@ function recoverWallet(): Ed25519Keypair | null {
   const decoded = decodeSuiPrivateKey(val);
 
   return Ed25519Keypair.fromSecretKey(decoded.secretKey);
+}
+
+function recoverMiningProgress(): { nonce: bigint; hash: Uint8Array } | null {
+  const val = localStorage.getItem(MINE_KEY);
+  if (!val) {
+    return null;
+  }
+  const decoded = JSON.parse(val);
+
+  return { nonce: BigInt(decoded.nonce), hash: new Uint8Array(decoded.hash) };
+}
+
+function persistMiningProgress({
+  nonce,
+  hash,
+}: {
+  nonce: bigint;
+  hash: Uint8Array;
+}) {
+  localStorage.setItem(
+    MINE_KEY,
+    JSON.stringify({
+      nonce: nonce.toString(),
+      hash: Array.from(hash),
+    })
+  );
 }
 
 (async () => {
@@ -200,6 +227,9 @@ function recoverWallet(): Ed25519Keypair | null {
       console.log("Mining success!", res.digest);
       app.ports.statusCb.send("4");
 
+      // Clear progress tracker
+      localStorage.removeItem(MINE_KEY);
+
       updateBalances(app, provider, wallet.toSuiAddress()).catch(console.error);
     })().catch((e) => {
       console.error(e);
@@ -219,11 +249,18 @@ function recoverWallet(): Ed25519Keypair | null {
         worker.onmessage = (e) =>
           (async () => {
             if (!wallet) {
-              // TODO
+              // TODO should stop worker
               throw Error("Wallet unavailable");
             }
 
-            if (e.data.proof) {
+            if ("checkpoint" in e.data) {
+              return persistMiningProgress({
+                nonce: e.data.checkpoint,
+                hash: e.data.currentHash,
+              });
+            }
+
+            if ("proof" in e.data) {
               const mineRes: MineResult = e.data;
               console.log("proof solved with nonce:", mineRes.nonce.toString());
               app.ports.statusCb.send("2");
@@ -233,6 +270,7 @@ function recoverWallet(): Ed25519Keypair | null {
               });
             }
 
+            // TODO should stop worker
             throw Error("Unknown worker response");
           })().catch(
             //TODO handle crash
@@ -288,10 +326,23 @@ async function buildMiningConfig(
   difficulty: number
 ): Promise<MineConfig> {
   const miner = await Miner.fetch(provider, miningAccount);
+  const progress = recoverMiningProgress();
+  const initialNonce = (() => {
+    if (!progress) {
+      return BigInt(0);
+    }
+    if (progress.hash.toString() === miner.currentHash.toString()) {
+      return progress.nonce;
+    } else {
+      localStorage.removeItem(MINE_KEY);
+      return BigInt(0);
+    }
+  })();
+  console.log("Starting nonce:", initialNonce.toString());
   return {
     currentHash: new Uint8Array(miner.currentHash),
     signer: bcs.Address.serialize(addr).toBytes(),
     difficulty: difficulty,
-    initialNonce: 0,
+    initialNonce,
   };
 }

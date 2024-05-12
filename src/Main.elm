@@ -66,7 +66,6 @@ subscriptions _ =
             (decodeResult JD.string
                 >> ClaimRes
             )
-        , Time.every 1000 (Time.posixToMillis >> Tick)
         ]
 
 

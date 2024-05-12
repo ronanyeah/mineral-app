@@ -99,19 +99,6 @@ export async function findBus(
   }
 }
 
-export async function findRewards(client: SuiClient): Promise<Bus> {
-  const objs = await client.multiGetObjects({
-    ids: BUSES,
-    options: { showContent: true },
-  });
-  const buses = objs.map((obj) => {
-    const bus = Bus.fromFieldsWithTypes(obj.data!.content! as any);
-    return bus;
-  });
-  const res = buses.find((bus) => bus.rewards.value >= bus.rewardRate);
-  return res ? res : buses[0];
-}
-
 export async function ship(
   preSign: SignatureWithBytes,
   client: SuiClient,
@@ -493,7 +480,7 @@ export interface MineConfig {
   currentHash: Uint8Array;
   signer: Uint8Array;
   difficulty: number;
-  initialNonce: number;
+  initialNonce: bigint;
 }
 
 export interface MineResult {

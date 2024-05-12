@@ -21,11 +21,11 @@ async function grind() {
   }
   let currentHash = config.currentHash;
   let proof: Uint8Array | null = null;
-  let nonce = BigInt(0);
+  let nonce = config.initialNonce || BigInt(0);
   while (true) {
     // Config has changed
     if (currentHash !== config.currentHash) {
-      nonce = BigInt(config.initialNonce || 0);
+      nonce = config.initialNonce || BigInt(0);
       currentHash = config.currentHash;
       proof = null;
     }
@@ -39,7 +39,11 @@ async function grind() {
       const res: MineResult = { currentHash, proof: hash, nonce };
       postMessage(res);
       proof = hash;
+    } else {
+      if (nonce % BigInt(1_000_000) == BigInt(0)) {
+        postMessage({ checkpoint: nonce, currentHash });
+      }
+      nonce++;
     }
-    nonce++;
   }
 }
