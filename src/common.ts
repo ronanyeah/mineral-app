@@ -73,6 +73,11 @@ export async function findBus(
     const bus = Bus.fromFieldsWithTypes(obj.data!.content! as any);
     return bus;
   });
+
+  // Put buses with most rewards to the start
+  buses.sort((a, b) => Number(a.rewards.value - b.rewards.value));
+  buses.reverse();
+
   const busWithRewards = buses.find(
     (bus) => bus.rewards.value >= bus.rewardRate
   );
