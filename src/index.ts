@@ -264,6 +264,10 @@ function persistMiningProgress({
               const mineRes: MineResult = e.data;
               console.log("proof solved with nonce:", mineRes.nonce.toString());
               app.ports.statusCb.send("2");
+              if (worker) {
+                worker.terminate();
+                worker = null;
+              }
               return app.ports.proofCb.send({
                 currentHash: Array.from(mineRes.currentHash),
                 nonce: Number(mineRes.nonce),
