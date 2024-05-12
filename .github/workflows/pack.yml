@@ -1,0 +1,80 @@
+name: CLI publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  actions: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build:cli
+
+      - name: Zip files [linux]
+        run: zip -j cli/linux.zip cli/mineral-linux cli/README.md
+
+      - name: Zip files [win]
+        run: zip -j cli/windows.zip cli/mineral-win.exe cli/README.md
+
+      - name: Zip files [macos]
+        run: zip -j cli/macos.zip cli/mineral-macos cli/README.md
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset [win]
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./cli/windows.zip
+          asset_name: windows.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Asset [linux]
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./cli/linux.zip
+          asset_name: linux.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Asset [macos]
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./cli/macos.zip
+          asset_name: macos.zip
+          asset_content_type: application/zip
