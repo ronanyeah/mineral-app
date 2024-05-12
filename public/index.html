@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Mineral 🌑</title>
+
+    <meta name="title" content="Mineral 🌑" />
+    <meta name="description" content="Algorithmic resource mining on Sui." />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:url" content="https://mineral.supply/" />
+    <meta property="og:image" content="https://mineral.supply/card.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Mineral 🌑" />
+    <meta
+      property="og:description"
+      content="Algorithmic resource mining on Sui."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Jersey+25&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      @keyframes rotation {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(359deg);
+        }
+      }
+
+      @keyframes flash {
+        0% {
+          font-color: inherit;
+        }
+        50% {
+          font-color: white;
+        }
+        100% {
+          font-color: inherit;
+        }
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.02);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      ::-webkit-scrollbar {
+        display: none;
+      }
+
+      @keyframes pulse-border {
+        0% {
+          border-color: green;
+          box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7);
+        }
+        50% {
+          border-color: green;
+          box-shadow: 0 0 10px 10px rgba(0, 255, 0, 0);
+        }
+        100% {
+          border-color: green;
+          box-shadow: 0 0 0 0 rgba(0, 255, 0, 0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="/bundle.js"></script>
+  </body>
+</html>
