@@ -2,6 +2,10 @@
 
 The frontend and CLI client for [Mineral](https://mineral.supply/).
 
+[Smart contract source code](https://github.com/ronanyeah/mineral)
+
+[x.com/MineralSupply](https://x.com/MineralSupply)
+
 ---
 
 ## Local Development
