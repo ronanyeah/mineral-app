@@ -225,7 +225,7 @@ viewBody model =
                                     ++ "..."
                                     ++ String.right 8 wallet.address
                                 )
-                                |> linkOut ("https://suiscan.xyz/testnet/account/" ++ wallet.address) [ Font.underline ]
+                                |> linkOut ("https://suiscan.xyz/mainnet/account/" ++ wallet.address) [ Font.underline ]
                           , img [ height <| px 25 ] "/icons/copy.png"
                                 |> btn (Just (Copy wallet.address))
                                     [ title wallet.address
