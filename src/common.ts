@@ -187,8 +187,7 @@ export function createHash(
   dataToHash.set(currentHash, 0);
   dataToHash.set(signerAddressBytes, 32);
   dataToHash.set(int64to8(nonce), 64);
-  const bts = keccak_256(dataToHash);
-  return new Uint8Array(bts);
+  return keccak_256(dataToHash);
 }
 
 export function validateHash(hash: Uint8Array, difficulty: number) {
