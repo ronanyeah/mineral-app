@@ -6,3 +6,5 @@ export const EInsufficientBuses: number = 4005;
 export const EVestingInProgress: number = 4006;
 export const EMiningHasEnded: number = 4007;
 export const EMiningNotStarted: number = 4008;
+
+export const EPOCH_LENGTH: number = 60_000;

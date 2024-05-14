@@ -261,6 +261,12 @@ update msg model =
                                         val
                                     )
                                 )
+                    , hashesChecked =
+                        if claimComplete then
+                            0
+
+                        else
+                            model.hashesChecked
                     , persistSuccessMessage =
                         if claimComplete then
                             True

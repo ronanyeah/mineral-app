@@ -58,8 +58,8 @@ export function fetchBus(client: SuiClient) {
   return Bus.fetch(client, BUSES[0]);
 }
 
-export function getBus() {
-  return BUSES[Math.floor(Math.random() * BUSES.length)];
+function roll20(): boolean {
+  return Math.floor(Math.random() * 20) === 0;
 }
 
 export async function findBus(
@@ -284,29 +284,42 @@ export async function runner(
 export async function waitUntilReset(client: SuiClient) {
   const bus = await fetchBus(client);
 
-  const threshold = Number(bus.lastReset) + 60000;
+  const threshold = Number(bus.lastReset) + constants.EPOCH_LENGTH;
 
   if (Date.now() < threshold) {
     await new Promise((r) => setTimeout(() => r(true), threshold - Date.now()));
   }
 }
 
-export function canBeReset(ts: bigint) {
-  const threshold = Number(ts) + 60000;
+export async function waitUntilReady(client: SuiClient) {
+  while (true) {
+    const bus = await fetchBus(client);
 
-  return Date.now() >= threshold;
+    if (canBeReset(bus.lastReset)) {
+      await new Promise((r) => setTimeout(() => r(true), 2000));
+    } else {
+      break;
+    }
+  }
+}
+
+export function canBeReset(ts: bigint) {
+  const threshold = Number(ts) + constants.EPOCH_LENGTH;
+
+  return Date.now() >= threshold - 2_000;
 }
 
 export async function execReset(
   client: SuiClient,
   wallet: Ed25519Keypair
 ): Promise<SuiTransactionBlockResponse | null> {
-  const bus = await Bus.fetch(client, BUSES[0]);
+  const bus = await fetchBus(client);
 
-  const shared = await getSharedVersion(getBus(), client);
-  const threshold = Number(bus.lastReset) + 60000;
+  const shared = await getSharedVersion(bus.id, client);
+  const threshold = Number(bus.lastReset) + constants.EPOCH_LENGTH;
 
-  if (Date.now() >= threshold) {
+  const now = Date.now();
+  if (now >= threshold) {
     const txb = new TransactionBlock();
     epochReset(txb, {
       config: CONFIG,
@@ -416,13 +429,17 @@ export async function submitProof(
       break;
     }
     case BusStatus.ResetNeeded: {
-      log("resetting");
-      await execReset(client, wallet);
+      if (roll20()) {
+        log("resetting");
+        await execReset(client, wallet);
+      } else {
+        await waitUntilReady(client);
+      }
       return null;
     }
     case BusStatus.RewardsExhausted: {
       log("waiting");
-      await waitUntilReset(client);
+      await waitUntilReady(client);
       return null;
     }
   }
