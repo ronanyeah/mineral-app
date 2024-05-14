@@ -24,7 +24,8 @@ view model =
       , text "MINERAL"
             |> el [ Font.size 70, displayFont ]
       ]
-        |> row [ spacing 20, centerX ]
+        |> row [ spacing 20 ]
+        |> btn (Just ToggleStats) [ centerX ]
     , [ text "Proof of Work"
             |> el [ Font.size 17, width <| px 140 ]
       , text "|"
@@ -81,6 +82,64 @@ view model =
             , mainFont
             , Font.color white
             , Background.color black
+            , model.stats
+                |> whenJust
+                    (\data ->
+                        [ text "STATS"
+                            |> el
+                                [ Font.bold
+                                , centerX
+                                , displayFont
+                                , Font.size 30
+                                ]
+                        , data
+                            |> whenJust
+                                (\stats ->
+                                    [ [ text "Total Hashes:"
+                                            |> el [ Font.bold ]
+                                      , formatFloatN 0 (toFloat stats.totalHashes)
+                                            |> text
+                                      ]
+                                        |> row [ spacing 10 ]
+                                    , [ text "Total Rewards:"
+                                            |> el [ Font.bold ]
+                                      , formatMINE stats.totalRewards 2
+                                            |> text
+                                      , text "$MINE"
+                                      ]
+                                        |> row [ spacing 10 ]
+                                    , [ text "Reward rate:"
+                                            |> el [ Font.bold ]
+                                      , formatMINE stats.rewardRate 9
+                                            |> text
+                                      ]
+                                        |> row [ spacing 10 ]
+                                    ]
+                                        |> column
+                                            [ spacing 10
+                                            , Font.size 17
+                                            ]
+                                )
+                        ]
+                            |> column
+                                [ width fill
+                                , height <| minimum 200 <| fill
+                                , Border.width 2
+                                , Border.color white
+                                , Background.color black
+                                , spacing 20
+                                , padding 10
+                                , img [ width <| px 25 ] "/icons/x.png"
+                                    |> btn (Just ToggleStats)
+                                        [ alignRight
+                                        , alignTop
+                                        , padding 10
+                                        ]
+                                    |> inFront
+                                ]
+                            |> el [ paddingXY 0 20, cappedWidth 350, centerX ]
+                    )
+                |> inFront
             ]
 
 
@@ -694,3 +753,7 @@ timeDifference timestamp1 timestamp2 =
             modBy 60 remainingSecondsAfterHours
     in
     ( hours, minutes, seconds )
+
+
+formatMINE n d =
+    formatFloatN d (toFloat n / 1000000000)

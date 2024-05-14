@@ -239,6 +239,23 @@ update msg model =
                 Ports.mine miner.address
             )
 
+        StatsCb data ->
+            ( { model
+                | stats =
+                    model.stats
+                        |> Maybe.map (always (Just data))
+              }
+            , Cmd.none
+            )
+
+        ToggleStats ->
+            model.stats
+                |> unwrap
+                    ( { model | stats = Just Nothing }, Ports.fetchStats () )
+                    (\_ ->
+                        ( { model | stats = Nothing }, Cmd.none )
+                    )
+
         StatusCb val ->
             let
                 claimComplete =

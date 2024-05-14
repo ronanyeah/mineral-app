@@ -8,14 +8,15 @@ import {
   getOrCreateMiner,
   MineResult,
   fetchBus,
+  CONFIG,
 } from "./common";
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
 import { bcs } from "@mysten/sui.js/bcs";
-import { ElmApp, Balances } from "./ports";
+import { Stats, ElmApp, Balances } from "./ports";
 import { decodeSuiPrivateKey } from "@mysten/sui.js/cryptography";
 import { SuiClient } from "@mysten/sui.js/client";
 import { SUI_TYPE_ARG } from "@mysten/sui.js/utils";
-import { MINE } from "./codegen/mineral/mine/structs";
+import { MINE, Config } from "./codegen/mineral/mine/structs";
 import { Miner } from "./codegen/mineral/miner/structs";
 
 const { Elm } = require("./Main.elm");
@@ -91,6 +92,23 @@ function persistMiningProgress({
         : null,
     },
   });
+
+  app.ports.fetchStats.subscribe(() =>
+    (async () => {
+      const [bus, config] = await Promise.all([
+        fetchBus(provider),
+        Config.fetch(provider, CONFIG),
+      ]);
+      const stats: Stats = {
+        totalHashes: Number(config.totalHashes),
+        totalRewards: Number(config.totalRewards),
+        rewardRate: Number(bus.rewardRate),
+      };
+      app.ports.statsCb.send(stats);
+    })().catch((e) => {
+      console.error(e);
+    })
+  );
 
   app.ports.clearWallet.subscribe(() => {
     wallet = null;

@@ -22,6 +22,7 @@ type alias Model =
     , currentTime : Int
     , miningError : Maybe String
     , hashesChecked : Int
+    , stats : Maybe (Maybe Ports.Stats)
     }
 
 
@@ -52,7 +53,9 @@ type Msg
     | ProofCb Proof
     | RetrySubmitProof { proof : Proof, miner : String }
     | MiningError String
+    | StatsCb Ports.Stats
     | Tick Int
+    | ToggleStats
 
 
 type alias Flags =

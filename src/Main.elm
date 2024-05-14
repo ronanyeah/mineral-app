@@ -38,6 +38,7 @@ init flags =
       , currentTime = flags.time
       , tokenRefreshInProgress = False
       , miningError = Nothing
+      , stats = Nothing
       , wallet =
             flags.wallet
                 |> Maybe.map
@@ -65,6 +66,7 @@ subscriptions _ =
         , Ports.retrySubmitProof RetrySubmitProof
         , Ports.miningError MiningError
         , Ports.hashCountCb HashCountCb
+        , Ports.statsCb StatsCb
         , Ports.claimCb
             (decodeResult JD.string
                 >> ClaimRes
