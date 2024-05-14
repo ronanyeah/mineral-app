@@ -94,4 +94,7 @@ port claimCb : (Value -> msg) -> Sub msg
 port proofCb : (Proof -> msg) -> Sub msg
 
 
+port hashCountCb : (Int -> msg) -> Sub msg
+
+
 port retrySubmitProof : ({ proof : Proof, miner : String } -> msg) -> Sub msg

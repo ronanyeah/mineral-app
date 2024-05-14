@@ -444,12 +444,22 @@ viewDash model wallet bal =
 viewMine model wallet =
     [ model.miningStatus
         |> unwrap
-            ([ img [ height <| px 25 ] "/icons/mine.png"
-             , text "Start mining"
-             ]
+            ([ [ img [ height <| px 25 ] "/icons/mine.png"
+               , text "Start mining"
+               ]
                 |> row [ spacing 15, padding 10 ]
                 |> txtBtn (Just Mine)
                 |> el [ centerX ]
+             , model.miningError
+                |> whenJust
+                    (para
+                        [ Font.italic
+                        , Font.size 15
+                        , Font.center
+                        ]
+                    )
+             ]
+                |> column [ centerX, spacing 20 ]
             )
             (\status ->
                 let
@@ -500,6 +510,17 @@ viewMine model wallet =
                         )
                     |> row [ width fill, spacing 20 ]
                 , para [ Font.center ] txt
+                , [ text "Hashes Checked:"
+                        |> el [ Font.bold ]
+                  , ((model.hashesChecked
+                        // 1000000
+                        |> String.fromInt
+                     )
+                        ++ "m"
+                    )
+                        |> text
+                  ]
+                    |> row [ centerX, spacing 10 ]
                 , [ spinningCog 25
                   , text "STOP"
                         |> txtBtn (Just StopMining)

@@ -254,6 +254,7 @@ function persistMiningProgress({
             }
 
             if ("checkpoint" in e.data) {
+              app.ports.hashCountCb.send(Number(e.data.checkpoint));
               return persistMiningProgress({
                 nonce: e.data.checkpoint,
                 hash: e.data.currentHash,

@@ -34,5 +34,4 @@ async function grind(config: MineConfig) {
       nonce++;
     }
   }
-  close();
 }

@@ -158,9 +158,10 @@ update msg model =
             , Ports.stopMining ()
             )
 
-        MiningError _ ->
+        MiningError e ->
             ( { model
                 | miningStatus = Nothing
+                , miningError = Just e
               }
             , Ports.stopMining ()
             )
@@ -292,9 +293,15 @@ update msg model =
             , Cmd.none
             )
 
+        HashCountCb n ->
+            ( { model | hashesChecked = n }
+            , Cmd.none
+            )
+
         Mine ->
             ( { model
                 | miningStatus = Just "1"
+                , miningError = Nothing
               }
             , model.wallet
                 |> Maybe.andThen .miningAccount

@@ -20,6 +20,8 @@ type alias Model =
     , addressInput : String
     , proof : Maybe Proof
     , currentTime : Int
+    , miningError : Maybe String
+    , hashesChecked : Int
     }
 
 
@@ -38,6 +40,7 @@ type Msg
     | SetView View
     | AddressInputCh String
     | ClaimInputCh String
+    | HashCountCb Int
     | ToggleMax
     | ClaimMax
     | ClaimRes (Result String String)

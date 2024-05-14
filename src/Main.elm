@@ -26,6 +26,7 @@ init flags =
       , persistSuccessMessage = False
       , addressInput = ""
       , miningStatus = Nothing
+      , hashesChecked = 0
       , claimInput = ""
       , withdrawMax = False
       , walletInput = ""
@@ -36,6 +37,7 @@ init flags =
       , confirmDelete = False
       , currentTime = flags.time
       , tokenRefreshInProgress = False
+      , miningError = Nothing
       , wallet =
             flags.wallet
                 |> Maybe.map
@@ -62,6 +64,7 @@ subscriptions _ =
         , Ports.proofCb ProofCb
         , Ports.retrySubmitProof RetrySubmitProof
         , Ports.miningError MiningError
+        , Ports.hashCountCb HashCountCb
         , Ports.claimCb
             (decodeResult JD.string
                 >> ClaimRes

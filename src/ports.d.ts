@@ -30,6 +30,7 @@ interface Ports {
   walletCb: PortIn<Keypair>;
   claimCb: PortIn<any>;
   proofCb: PortIn<Proof>;
+  hashCountCb: PortIn<number>;
   retrySubmitProof: PortIn<{
     proof: Proof;
     miner: string;
