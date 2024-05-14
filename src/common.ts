@@ -1,43 +1,43 @@
 /* eslint-disable fp/no-loops, fp/no-mutation, fp/no-mutating-methods, fp/no-let, no-constant-condition */
 
-import { keccak_256 } from "@noble/hashes/sha3";
-import { mine, epochReset } from "./codegen/mineral/mine/functions";
-import { register } from "./codegen/mineral/miner/functions";
-import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui.js/utils";
-import { bcs } from "@mysten/sui.js/bcs";
-import * as constants from "./constants";
+import { keccak } from 'hash-wasm';
+import { mine, epochReset } from './codegen/mineral/mine/functions';
+import { register } from './codegen/mineral/miner/functions';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui.js/utils';
+import { bcs } from '@mysten/sui.js/bcs';
+import * as constants from './constants';
 import {
   ExecutionStatus,
   SuiClient,
   SuiTransactionBlockResponse,
   SuiTransactionBlockResponseOptions,
-} from "@mysten/sui.js/client";
-import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { Ed25519Keypair } from "@mysten/sui.js/dist/cjs/keypairs/ed25519";
-import { Bus } from "./codegen/mineral/mine/structs";
-import { Miner } from "./codegen/mineral/miner/structs";
-import numbro from "numbro";
-import { SignatureWithBytes } from "@mysten/sui.js/dist/cjs/cryptography";
+} from '@mysten/sui.js/client';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { Ed25519Keypair } from '@mysten/sui.js/dist/cjs/keypairs/ed25519';
+import { Bus } from './codegen/mineral/mine/structs';
+import { Miner } from './codegen/mineral/miner/structs';
+import numbro from 'numbro';
+import { SignatureWithBytes } from '@mysten/sui.js/dist/cjs/cryptography';
 
 export const CONFIG =
-  "0x0fc44c38dd791dffb696ca7448cb8b1774c17178d3dd3b0fed3480f2ac82bd5b";
+  '0x0fc44c38dd791dffb696ca7448cb8b1774c17178d3dd3b0fed3480f2ac82bd5b';
 export const BUSES = [
-  "0x2bbc816d1139263190f738783789e23b69eb84f1293d0417432ed8c00556ed7c",
-  "0x4ac2335213b48837a6036c37078af04921bac8844c982728cbcfcdc9304dce2a",
-  "0x5ff0cae9a422a59fc3a9685c9d0e9e3cc58a9bc0c3eec212cd879f92e814aa4b",
-  "0x6cf20bbe1f40431fcbe26dc18952f9bf025fbbeb38c9ce00ae4cc807bfa0bbd2",
-  "0x72828b43f588eeb7721b50e9d8bc47a8ab2d1a9e93698109ef9afc93f364f8b6",
-  "0x77092b2f9370e6a60e2e24817ad7b3dfdff7e18ee959e1d01ed5ecd8687c5e34",
-  "0xacb27d661ae5eb463933c373ecdafe84023141d95e335353b02b4a3de2251a52",
-  "0xb826932f675bb1215c5285b2ad3e137a6b2f91122003b6f68b6fe52cc8cd8b3b",
+  '0x2bbc816d1139263190f738783789e23b69eb84f1293d0417432ed8c00556ed7c',
+  '0x4ac2335213b48837a6036c37078af04921bac8844c982728cbcfcdc9304dce2a',
+  '0x5ff0cae9a422a59fc3a9685c9d0e9e3cc58a9bc0c3eec212cd879f92e814aa4b',
+  '0x6cf20bbe1f40431fcbe26dc18952f9bf025fbbeb38c9ce00ae4cc807bfa0bbd2',
+  '0x72828b43f588eeb7721b50e9d8bc47a8ab2d1a9e93698109ef9afc93f364f8b6',
+  '0x77092b2f9370e6a60e2e24817ad7b3dfdff7e18ee959e1d01ed5ecd8687c5e34',
+  '0xacb27d661ae5eb463933c373ecdafe84023141d95e335353b02b4a3de2251a52',
+  '0xb826932f675bb1215c5285b2ad3e137a6b2f91122003b6f68b6fe52cc8cd8b3b',
 ];
 
 export type MineEvent =
-  | "resetting"
-  | "retrying"
-  | "simulating"
-  | "submitting"
-  | "waiting";
+  | 'resetting'
+  | 'retrying'
+  | 'simulating'
+  | 'submitting'
+  | 'waiting';
 
 // Use typescript-eslint or varsIgnorePattern
 /* eslint-disable no-unused-vars */
@@ -108,9 +108,9 @@ export async function ship(
     transactionBlock: preSign.bytes,
   });
 
-  if (dryRun.effects.status.status === "failure") {
+  if (dryRun.effects.status.status === 'failure') {
     const contractErr = extractError(dryRun.effects.status);
-    throw Error(contractErr || "Unknown failure");
+    throw Error(contractErr || 'Unknown failure');
   }
 
   const res = await client.executeTransactionBlock({
@@ -171,23 +171,25 @@ export async function buildMineTx(
   return txb;
 }
 
-export function fakeProof(nonce: bigint): Uint8Array {
+export async function fakeProof(nonce: bigint): Promise<Uint8Array> {
   const dataToHash = new Uint8Array(32 + 32 + 8);
   dataToHash.set(int64to8(nonce), 64);
-  const bts = keccak_256(dataToHash);
-  return new Uint8Array(bts);
+  const bts = await keccak(dataToHash, 256);
+  return hexToBytes(bts);
 }
 
-export function createHash(
+export async function createHash(
   currentHash: Uint8Array,
   signerAddressBytes: Uint8Array,
   nonce: bigint
-): Uint8Array {
+): Promise<Uint8Array> {
   const dataToHash = new Uint8Array(32 + 32 + 8);
   dataToHash.set(currentHash, 0);
   dataToHash.set(signerAddressBytes, 32);
   dataToHash.set(int64to8(nonce), 64);
-  return keccak_256(dataToHash);
+
+  const bts = await keccak(dataToHash, 256);
+  return hexToBytes(bts);
 }
 
 export function validateHash(hash: Uint8Array, difficulty: number) {
@@ -225,8 +227,8 @@ export async function runner(
 
   let currentHash: Uint8Array | null = null;
   let nonce = BigInt(0);
-  log("⛏️  Mining started");
-  log("🔍 Looking for a valid proof...");
+  log('⛏️  Mining started');
+  log('🔍 Looking for a valid proof...');
   while (true) {
     await (async () => {
       if (!currentHash) {
@@ -234,23 +236,23 @@ export async function runner(
         currentHash = new Uint8Array(miner.currentHash);
       }
 
-      const hash = createHash(currentHash, signerBytes, nonce);
+      const hash = await createHash(currentHash, signerBytes, nonce);
       const hashIsValid = validateHash(hash, difficulty);
       if (hashIsValid) {
         const handleEvent = (ev: MineEvent) => {
           switch (ev) {
-            case "resetting": {
+            case 'resetting': {
               break;
             }
-            case "retrying": {
+            case 'retrying': {
               break;
             }
-            case "submitting": {
-              log("✅ Valid hash found");
-              log("📡 Submitting transaction");
+            case 'submitting': {
+              log('✅ Valid hash found');
+              log('📡 Submitting transaction');
               break;
             }
-            case "simulating": {
+            case 'simulating': {
               break;
             }
           }
@@ -267,8 +269,8 @@ export async function runner(
           return;
         }
 
-        log("🏅 Mining success!");
-        log("🔍 Looking for next hash...");
+        log('🏅 Mining success!');
+        log('🔍 Looking for next hash...');
         currentHash = null;
         nonce = BigInt(0);
       } else {
@@ -339,7 +341,7 @@ export async function execReset(
       transactionBlock: preSign.bytes,
     });
 
-    if (dry.effects.status.status === "failure") {
+    if (dry.effects.status.status === 'failure') {
       const errMsg = dry.effects.status.error;
       if (errMsg) {
         if (errMsg.includes(constants.EResetTooEarly.toString())) {
@@ -349,7 +351,7 @@ export async function execReset(
           throw Error(contractErr ? contractErr : errMsg);
         }
       } else {
-        throw Error("Unknown failure");
+        throw Error('Unknown failure');
       }
     }
 
@@ -380,7 +382,7 @@ export async function getOrCreateMiner(
   const miningAccount = await getProof(client, pub);
 
   if (!miningAccount) {
-    throw Error("Miner failed to register");
+    throw Error('Miner failed to register');
   }
 
   return miningAccount;
@@ -409,7 +411,7 @@ export async function getSharedVersion(
     // @ts-ignore
     owner && owner.Shared ? owner.Shared : null;
   if (!shared) {
-    throw Error("no shared version");
+    throw Error('no shared version');
   }
   return shared.initial_shared_version;
 }
@@ -430,7 +432,7 @@ export async function submitProof(
     }
     case BusStatus.ResetNeeded: {
       if (roll20()) {
-        log("resetting");
+        log('resetting');
         await execReset(client, wallet);
       } else {
         await waitUntilReady(client);
@@ -438,7 +440,7 @@ export async function submitProof(
       return null;
     }
     case BusStatus.RewardsExhausted: {
-      log("waiting");
+      log('waiting');
       await waitUntilReady(client);
       return null;
     }
@@ -454,19 +456,19 @@ export async function submitProof(
 
   const signedTx = await buildTx(txb, client, wallet);
 
-  log("simulating");
+  log('simulating');
   const dryRun = await client.dryRunTransactionBlock({
     transactionBlock: signedTx.bytes,
   });
 
   // TODO refactor
   const shouldRetry = await (async () => {
-    if (dryRun.effects.status.status === "failure") {
+    if (dryRun.effects.status.status === 'failure') {
       const contractErr = extractError(dryRun.effects.status);
-      const errMsg = dryRun.effects.status.error || "missing";
+      const errMsg = dryRun.effects.status.error || 'missing';
 
       if (errMsg.includes(constants.ENeedsReset.toString())) {
-        log("resetting");
+        log('resetting');
         await execReset(client, wallet);
         return true;
       } else if (errMsg.includes(constants.ERewardsExhausted.toString())) {
@@ -474,7 +476,7 @@ export async function submitProof(
       } else if (contractErr) {
         throw Error(contractErr);
       } else {
-        throw Error("Unknown error");
+        throw Error('Unknown error');
       }
     } else {
       return false;
@@ -482,11 +484,11 @@ export async function submitProof(
   })();
 
   if (shouldRetry) {
-    log("retrying");
+    log('retrying');
     return null;
   }
 
-  log("submitting");
+  log('submitting');
   const res = await ship(signedTx, client);
 
   return res;
@@ -510,4 +512,11 @@ export function formatBig(n: bigint, decimals: number) {
     mantissa: 9,
     trimMantissa: true,
   });
+}
+
+export function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let c = 0, i = 0; c < hex.length; c += 2, i++)
+    bytes[i] = parseInt(hex.slice(c, c + 2), 16);
+  return bytes;
 }

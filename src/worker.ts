@@ -1,7 +1,13 @@
 /* eslint-disable fp/no-loops, fp/no-mutation, fp/no-mutating-methods, fp/no-let, no-constant-condition */
 
-import { keccak_256 } from "@noble/hashes/sha3";
-import { MineConfig, MineResult, validateHash, int64to8 } from "./common";
+import { keccak } from 'hash-wasm';
+import {
+  MineConfig,
+  MineResult,
+  validateHash,
+  int64to8,
+  hexToBytes,
+} from './common';
 
 onmessage = async (event) => {
   const config: MineConfig = event.data;
@@ -15,7 +21,8 @@ async function grind(config: MineConfig) {
   dataToHash.set(config.signer, 32);
   while (true) {
     dataToHash.set(int64to8(nonce), 64);
-    const hash = keccak_256(dataToHash);
+    const bts = await keccak(dataToHash, 256);
+    const hash = hexToBytes(bts);
     if (validateHash(hash, config.difficulty)) {
       const res: MineResult = {
         currentHash: config.currentHash,
