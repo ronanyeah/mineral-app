@@ -223,6 +223,7 @@ export async function runner(
 
   const signerBytes = bcs.Address.serialize(wallet.toSuiAddress()).toBytes();
 
+  let previousHash = new Uint8Array(32);
   let currentHash: Uint8Array | null = null;
   let nonce = BigInt(0);
   log("⛏️  Mining started");
@@ -231,7 +232,15 @@ export async function runner(
     await (async () => {
       if (!currentHash) {
         const miner = await Miner.fetch(client, minerId);
-        currentHash = new Uint8Array(miner.currentHash);
+        const fetchedHash = new Uint8Array(miner.currentHash);
+
+        // Check if RPC hash has changed
+        if (bufferEq(previousHash, fetchedHash)) {
+          return snooze(2000);
+        } else {
+          currentHash = fetchedHash;
+          previousHash = fetchedHash;
+        }
       }
 
       const hash = createHash(currentHash, signerBytes, nonce);
@@ -276,7 +285,7 @@ export async function runner(
       }
     })().catch((e) => {
       console.error(tag, e);
-      return new Promise((r) => setTimeout(() => r(true), 500));
+      return snooze(500);
     });
   }
 }
@@ -287,7 +296,7 @@ export async function waitUntilReset(client: SuiClient) {
   const threshold = Number(bus.lastReset) + constants.EPOCH_LENGTH;
 
   if (Date.now() < threshold) {
-    await new Promise((r) => setTimeout(() => r(true), threshold - Date.now()));
+    await snooze(threshold - Date.now());
   }
 }
 
@@ -296,7 +305,7 @@ export async function waitUntilReady(client: SuiClient) {
     const bus = await fetchBus(client);
 
     if (canBeReset(bus.lastReset)) {
-      await new Promise((r) => setTimeout(() => r(true), 2000));
+      await snooze(2000);
     } else {
       break;
     }
@@ -510,4 +519,18 @@ export function formatBig(n: bigint, decimals: number) {
     mantissa: 9,
     trimMantissa: true,
   });
+}
+
+function snooze(n: number) {
+  return new Promise((r) => setTimeout(() => r(true), n));
+}
+
+function bufferToHex(buffer: Uint8Array): string {
+  return Array.from(buffer)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function bufferEq(a: Uint8Array, b: Uint8Array): boolean {
+  return bufferToHex(a) === bufferToHex(b);
 }
