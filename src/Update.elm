@@ -64,6 +64,11 @@ update msg model =
             , Cmd.none
             )
 
+        ManageCoins ->
+            ( model
+            , Ports.combineCoins ()
+            )
+
         Copy str ->
             ( model
             , Ports.copy str

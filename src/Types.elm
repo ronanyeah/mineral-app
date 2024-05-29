@@ -56,6 +56,7 @@ type Msg
     | StatsCb Ports.Stats
     | Tick Int
     | ToggleStats
+    | ManageCoins
 
 
 type alias Flags =

@@ -396,77 +396,20 @@ viewDash model wallet bal =
                 |> when False
     in
     if model.view == ViewClaim then
-        [ claimable
-        , Input.text
-            [ width fill
-            , Font.color black
-            , Border.rounded 0
-            ]
-            { onChange = AddressInputCh
-            , placeholder = Just <| Input.placeholder [] <| text "Wallet address"
-            , text = model.addressInput
-            , label = Input.labelHidden ""
-            }
-        , Input.text
-            [ width fill
-            , Font.color black
-            , Border.rounded 0
-            ]
-            { onChange = ClaimInputCh
-            , placeholder = Just <| Input.placeholder [] <| text "Claim amount"
-            , text = model.claimInput
-            , label =
-                text "MAX"
-                    |> txtBtn (Just ToggleMax)
-                    |> Input.labelRight []
-            }
-        , let
-            inProg =
-                model.claimStatus == InProgress
-          in
-          [ text "Claim"
-                |> txtBtn (fork inProg Nothing (Just ClaimMax))
-          , spinner 20
-                |> when inProg
-          ]
-            |> row
-                [ spacing 10
-                , centerX
-                ]
-        , case model.claimStatus of
-            Response (Ok val) ->
-                text "Success"
-                    |> linkOut ("https://testnet.suivision.xyz/txblock/" ++ val) [ Font.underline ]
-
-            Response (Err val) ->
-                para
-                    [ Html.Attributes.style "word-break" "break-all"
-                        |> htmlAttribute
-                    ]
-                    ("Error: " ++ val)
-
-            _ ->
-                none
-        , horizRule
-        , text "RETURN TO MINES"
-            |> txtBtn (Just (SetView ViewMine))
-            |> el [ centerX ]
-        ]
-            |> column [ spacing 20, width fill ]
+        viewManager model wallet
 
     else
         [ [ [ text "Balances"
                 |> el [ Font.bold ]
-            , text "Refresh"
+            , text "Manage"
                 |> btn
                     (if model.tokenRefreshInProgress then
                         Nothing
 
                      else
-                        Just RefreshTokens
+                        Just (SetView ViewClaim)
                     )
                     [ Font.underline, Font.size 15 ]
-                |> when False
             ]
                 |> row [ spaceEvenly, width fill ]
           , [ text
@@ -498,6 +441,31 @@ viewDash model wallet bal =
                 [ spacing 20
                 , width fill
                 ]
+
+
+viewManager model wallet =
+    [ wallet.balances
+        |> whenJust
+            (\bal ->
+                [ [ text "$MINE object count:"
+                        |> el [ Font.bold ]
+                  , String.fromInt bal.mineralObjects
+                        |> text
+                  ]
+                    |> row [ spacing 20 ]
+                , text "Combine"
+                    |> txtBtn (Just ManageCoins)
+                    |> el [ alignRight ]
+                    |> when (bal.mineralObjects > 1)
+                ]
+                    |> column [ spacing 20 ]
+            )
+    , horizRule
+    , text "RETURN TO MINE"
+        |> txtBtn (Just (SetView ViewMine))
+        |> el [ centerX ]
+    ]
+        |> column [ spacing 20, width fill ]
 
 
 viewMine model wallet =

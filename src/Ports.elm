@@ -6,6 +6,7 @@ import Json.Decode exposing (Value)
 type alias Balances =
     { mineral : Int
     , sui : Int
+    , mineralObjects : Int
     }
 
 
@@ -74,6 +75,9 @@ port stopMining : () -> Cmd msg
 
 
 port clearWallet : () -> Cmd msg
+
+
+port combineCoins : () -> Cmd msg
 
 
 

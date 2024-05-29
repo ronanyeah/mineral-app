@@ -23,6 +23,7 @@ interface Ports {
   fetchStats: PortOut<null>;
   stopMining: PortOut<null>;
   clearWallet: PortOut<null>;
+  combineCoins: PortOut<null>;
   minerAccountCb: PortIn<Miner>;
   minerCreatedCb: PortIn<Miner>;
   statusCb: PortIn<string>;
@@ -50,6 +51,7 @@ interface PortIn<T> {
 interface Balances {
   mineral: number;
   sui: number;
+  mineralObjects: number;
 }
 
 interface Miner {

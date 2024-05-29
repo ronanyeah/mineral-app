@@ -129,10 +129,13 @@ export async function ship(
 export function buildTx(
   txb: TransactionBlock,
   client: SuiClient,
-  wallet: Ed25519Keypair
+  wallet: Ed25519Keypair,
+  gas: number | null
 ): Promise<SignatureWithBytes> {
   txb.setSender(wallet.toSuiAddress());
-  txb.setGasBudget(5000000);
+  if (gas) {
+    txb.setGasBudget(gas);
+  }
   return txb.sign({
     client,
     signer: wallet,
@@ -144,8 +147,34 @@ export async function launch(
   client: SuiClient,
   wallet: Ed25519Keypair
 ): Promise<SuiTransactionBlockResponse> {
-  const preSign = await buildTx(txb, client, wallet);
-  return ship(preSign, client);
+  const drySign = await buildTx(txb, client, wallet, null);
+
+  const dryRun = await client.dryRunTransactionBlock({
+    transactionBlock: drySign.bytes,
+  });
+
+  if (dryRun.effects.status.status === "failure") {
+    const contractErr = extractError(dryRun.effects.status);
+    throw Error(contractErr || "Unknown failure");
+  }
+
+  const gasUsed =
+    Number(dryRun.effects.gasUsed.computationCost) +
+    //Number(dryRun.effects.gasUsed.nonRefundableStorageFee) +
+    Number(dryRun.effects.gasUsed.storageCost);
+  const preSign = await buildTx(txb, client, wallet, gasUsed);
+
+  const res = await client.executeTransactionBlock({
+    transactionBlock: preSign.bytes,
+    signature: preSign.signature,
+    //options: opts,
+  });
+
+  const _exec = await client.waitForTransactionBlock({
+    digest: res.digest,
+  });
+
+  return res;
 }
 
 export async function buildMineTx(
@@ -342,7 +371,7 @@ export async function execReset(
       clock: SUI_CLOCK_OBJECT_ID,
     });
 
-    const preSign = await buildTx(txb, client, wallet);
+    const preSign = await buildTx(txb, client, wallet, 5000000);
 
     const dry = await client.dryRunTransactionBlock({
       transactionBlock: preSign.bytes,
@@ -461,7 +490,7 @@ export async function submitProof(
     wallet.toSuiAddress()
   );
 
-  const signedTx = await buildTx(txb, client, wallet);
+  const signedTx = await buildTx(txb, client, wallet, 5000000);
 
   log("simulating");
   const dryRun = await client.dryRunTransactionBlock({

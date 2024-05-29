@@ -9,12 +9,14 @@ import {
   MineResult,
   fetchBus,
   CONFIG,
+  launch,
 } from "./common";
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
 import { bcs } from "@mysten/sui.js/bcs";
 import { Stats, ElmApp, Balances } from "./ports";
 import { decodeSuiPrivateKey } from "@mysten/sui.js/cryptography";
 import { SuiClient } from "@mysten/sui.js/client";
+import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { SUI_TYPE_ARG } from "@mysten/sui.js/utils";
 import { MINE, Config } from "./codegen/mineral/mine/structs";
 import { Miner } from "./codegen/mineral/miner/structs";
@@ -143,6 +145,25 @@ function persistMiningProgress({
     })().catch((e) => {
       console.error(e);
       app.ports.balancesCb.send(null);
+    })
+  );
+
+  app.ports.combineCoins.subscribe(() =>
+    (async () => {
+      if (wallet) {
+        const coins = await fetchMineral(provider, wallet.toSuiAddress());
+
+        const txb = new TransactionBlock();
+        txb.mergeCoins(
+          coins[0].coinObjectId,
+          coins.slice(1).map((coin) => coin.coinObjectId)
+        );
+        const sig = await launch(txb, provider, wallet);
+        console.log("combine coins:", sig);
+        updateBalances(app, provider, wallet.toSuiAddress());
+      }
+    })().catch((e) => {
+      console.error(e);
     })
   );
 
@@ -322,18 +343,23 @@ async function fetchBalances(
   client: SuiClient,
   address: string
 ): Promise<Balances> {
-  const [mineralBalance, suiBalance] = await Promise.all([
-    client.getBalance({
-      owner: address,
+  const [mineralObjs, suiBalance] = await Promise.all([
+    client.getCoins({
       coinType: MINE.$typeName,
+      owner: address,
     }),
     client.getBalance({
       owner: address,
       coinType: SUI_TYPE_ARG,
     }),
   ]);
+  const mineralBalance = mineralObjs.data.reduce(
+    (acc, obj) => acc + BigInt(obj.balance),
+    BigInt(0)
+  );
   return {
-    mineral: Number(mineralBalance.totalBalance),
+    mineralObjects: mineralObjs.data.length,
+    mineral: Number(mineralBalance),
     sui: Number(suiBalance.totalBalance),
   };
 }
@@ -368,4 +394,15 @@ async function buildMiningConfig(
     difficulty: difficulty,
     initialNonce,
   };
+}
+
+async function fetchMineral(client: SuiClient, address: string) {
+  const res = await client.getCoins({
+    coinType: MINE.$typeName,
+    owner: address,
+  });
+  const coins = res.data;
+  coins.sort((a, b) => Number(Number(a.balance) - Number(b.balance)));
+  coins.reverse();
+  return coins;
 }
