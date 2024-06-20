@@ -24,8 +24,7 @@ view model =
       , text "MINERAL"
             |> el [ Font.size 70, displayFont ]
       ]
-        |> row [ spacing 20 ]
-        |> btn (Just ToggleStats) [ centerX ]
+        |> row [ spacing 20, centerX ]
     , [ text "Proof of Work"
             |> el [ Font.size 17, width <| px 140 ]
       , text "|"
@@ -640,7 +639,7 @@ viewManager model wallet =
         |> column [ spacing 20, width fill ]
 
 
-viewMine model wallet =
+viewMine model _ =
     [ model.miningStatus
         |> unwrap
             ([ [ img [ height <| px 25 ] "/icons/mine.png"
@@ -746,7 +745,7 @@ displayFont =
 
 btn msg attrs elem =
     Input.button
-        ([ hover |> whenAttr (msg /= Nothing) ] ++ attrs)
+        ((hover |> whenAttr (msg /= Nothing)) :: attrs)
         { onPress = msg
         , label = elem
         }

@@ -3,7 +3,6 @@ module Main exposing (main)
 import Browser
 import Json.Decode as JD
 import Ports
-import Time
 import Types exposing (..)
 import Update exposing (update)
 import View exposing (view)

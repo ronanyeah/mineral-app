@@ -58,7 +58,6 @@ type Msg
     | StatsCb Ports.Stats
     | SwapDataCb Ports.SwapData
     | Tick Int
-    | ToggleStats
     | ManageCoins
 
 

@@ -266,14 +266,6 @@ update msg model =
             , Cmd.none
             )
 
-        ToggleStats ->
-            model.stats
-                |> unwrap
-                    ( { model | stats = Just Nothing }, Ports.fetchStats () )
-                    (\_ ->
-                        ( { model | stats = Nothing }, Cmd.none )
-                    )
-
         StatusCb val ->
             let
                 claimComplete =
