@@ -1,6 +1,7 @@
 /* eslint-disable fp/no-loops, fp/no-mutation, fp/no-mutating-methods, fp/no-let, no-constant-condition */
 
 import {
+  calcProfit,
   MineEvent,
   submitProof,
   MineConfig,
@@ -11,6 +12,7 @@ import {
   CONFIG,
   launch,
 } from "./common";
+import { Network, TurbosSdk } from "turbos-clmm-sdk";
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
 import { bcs } from "@mysten/sui.js/bcs";
 import { Stats, ElmApp, Balances } from "./ports";
@@ -44,6 +46,8 @@ const RPC = RPCS[Math.floor(Math.random() * RPCS.length)];
 const provider = new SuiClient({
   url: RPC,
 });
+
+const sdk = new TurbosSdk(Network.mainnet);
 
 let worker: Worker | null = null;
 
@@ -88,6 +92,7 @@ function persistMiningProgress({
   const app: ElmApp = Elm.Main.init({
     node: document.getElementById("app"),
     flags: {
+      rpc: [RPC, RPCS],
       time: Date.now(),
       wallet: wallet
         ? { pub: wallet.toSuiAddress(), pvt: wallet.getSecretKey() }
@@ -107,6 +112,8 @@ function persistMiningProgress({
         rewardRate: Number(bus.rewardRate),
       };
       app.ports.statsCb.send(stats);
+      const rtns = await calcProfit(sdk, bus.rewardRate);
+      app.ports.swapDataCb.send(rtns);
     })().catch((e) => {
       console.error(e);
     })
@@ -158,8 +165,7 @@ function persistMiningProgress({
           coins[0].coinObjectId,
           coins.slice(1).map((coin) => coin.coinObjectId)
         );
-        const sig = await launch(txb, provider, wallet);
-        console.log("combine coins:", sig);
+        const _sig = await launch(txb, provider, wallet);
         updateBalances(app, provider, wallet.toSuiAddress());
       }
     })().catch((e) => {

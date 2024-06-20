@@ -35,6 +35,13 @@ type alias Stats =
     }
 
 
+type alias SwapData =
+    { mineGasFee : Float
+    , swapOutput : Float
+    , delta : Float
+    }
+
+
 
 -- OUT
 
@@ -112,6 +119,9 @@ port hashCountCb : (Int -> msg) -> Sub msg
 
 
 port statsCb : (Stats -> msg) -> Sub msg
+
+
+port swapDataCb : (SwapData -> msg) -> Sub msg
 
 
 port retrySubmitProof : ({ proof : Proof, miner : String } -> msg) -> Sub msg

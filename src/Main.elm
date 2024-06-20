@@ -39,6 +39,8 @@ init flags =
       , tokenRefreshInProgress = False
       , miningError = Nothing
       , stats = Nothing
+      , swapData = Nothing
+      , rpcs = flags.rpc
       , wallet =
             flags.wallet
                 |> Maybe.map
@@ -67,6 +69,7 @@ subscriptions _ =
         , Ports.miningError MiningError
         , Ports.hashCountCb HashCountCb
         , Ports.statsCb StatsCb
+        , Ports.swapDataCb SwapDataCb
         , Ports.claimCb
             (decodeResult JD.string
                 >> ClaimRes

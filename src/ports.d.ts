@@ -34,6 +34,7 @@ interface Ports {
   proofCb: PortIn<Proof>;
   hashCountCb: PortIn<number>;
   statsCb: PortIn<Stats>;
+  swapDataCb: PortIn<SwapData>;
   retrySubmitProof: PortIn<{
     proof: Proof;
     miner: string;
@@ -75,4 +76,10 @@ interface Stats {
   rewardRate: number;
 }
 
-export { ElmApp, Balances, Miner, Keypair, Proof, Stats };
+interface SwapData {
+  mineGasFee: number;
+  swapOutput: number;
+  delta: number;
+}
+
+export { ElmApp, Balances, Miner, Keypair, Proof, Stats, SwapData };

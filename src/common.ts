@@ -3,7 +3,7 @@
 import { keccak_256 } from "@noble/hashes/sha3";
 import { mine, epochReset } from "./codegen/mineral/mine/functions";
 import { register } from "./codegen/mineral/miner/functions";
-import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui.js/utils";
+import { SUI_CLOCK_OBJECT_ID, MIST_PER_SUI } from "@mysten/sui.js/utils";
 import { bcs } from "@mysten/sui.js/bcs";
 import * as constants from "./constants";
 import {
@@ -18,6 +18,7 @@ import { Bus } from "./codegen/mineral/mine/structs";
 import { Miner } from "./codegen/mineral/miner/structs";
 import numbro from "numbro";
 import { SignatureWithBytes } from "@mysten/sui.js/dist/cjs/cryptography";
+import { TurbosSdk } from "turbos-clmm-sdk";
 
 export const CONFIG =
   "0x0fc44c38dd791dffb696ca7448cb8b1774c17178d3dd3b0fed3480f2ac82bd5b";
@@ -53,6 +54,31 @@ export const getClient = () => {
     url: new URL(process.env.RPC!).toString(),
   });
 };
+
+export async function calcProfit(sdk: TurbosSdk, amount: bigint) {
+  const MINE_GAS_FEE = 2_113_820;
+
+  const [swap] = await sdk.trade.computeSwapResultV2({
+    pools: [
+      {
+        pool: "0x36f838ab69ea41d959de58dd5b2cb00c9deb7bc1e851a82097b66dfd629f0f3f",
+        a2b: true,
+        amountSpecified: amount.toString(),
+      },
+    ],
+    address:
+      "0x7da95f2a3898d8aabbb9b67fb0130c029c73085340db8b21373c514c608e65fe",
+    amountSpecifiedIsInput: true,
+  });
+  const out =
+    Number(swap.amount_b) + Number(swap.protocol_fee) + Number(swap.fee_amount);
+  const delta = (out - MINE_GAS_FEE) / Number(MIST_PER_SUI);
+  return {
+    mineGasFee: MINE_GAS_FEE / Number(MIST_PER_SUI),
+    swapOutput: out / Number(MIST_PER_SUI),
+    delta,
+  };
+}
 
 export function fetchBus(client: SuiClient) {
   return Bus.fetch(client, BUSES[0]);

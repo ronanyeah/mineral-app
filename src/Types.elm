@@ -23,6 +23,8 @@ type alias Model =
     , miningError : Maybe String
     , hashesChecked : Int
     , stats : Maybe (Maybe Ports.Stats)
+    , swapData : Maybe Ports.SwapData
+    , rpcs : ( String, List String )
     }
 
 
@@ -54,6 +56,7 @@ type Msg
     | RetrySubmitProof { proof : Proof, miner : String }
     | MiningError String
     | StatsCb Ports.Stats
+    | SwapDataCb Ports.SwapData
     | Tick Int
     | ToggleStats
     | ManageCoins
@@ -62,12 +65,15 @@ type Msg
 type alias Flags =
     { wallet : Maybe Keypair
     , time : Int
+    , rpc : ( String, List String )
     }
 
 
 type View
     = ViewMine
     | ViewClaim
+    | ViewSettings
+    | ViewStats
 
 
 type ClaimStatus

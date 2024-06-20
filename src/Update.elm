@@ -75,9 +75,15 @@ update msg model =
             )
 
         SetView v ->
-            ( { model | view = v }
-            , Cmd.none
-            )
+            if model.stats == Nothing && v == ViewStats then
+                ( { model | view = v, stats = Just Nothing }
+                , Ports.fetchStats ()
+                )
+
+            else
+                ( { model | view = v }
+                , Cmd.none
+                )
 
         ClaimMax ->
             if String.isEmpty model.addressInput then
@@ -242,6 +248,13 @@ update msg model =
 
               else
                 Ports.mine miner.address
+            )
+
+        SwapDataCb data ->
+            ( { model
+                | swapData = Just data
+              }
+            , Cmd.none
             )
 
         StatsCb data ->
