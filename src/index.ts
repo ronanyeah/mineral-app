@@ -29,12 +29,12 @@ const WALLET_KEY = "WALLET";
 const MINE_KEY = "MINOOOR";
 
 const RPCS = [
+  //"https://sui-mainnet-rpc.allthatnode.com",
+  //"https://sui-mainnet-endpoint.blockvision.org",
   "https://fullnode.mainnet.sui.io:443",
   "https://mainnet.suiet.app",
   "https://sui-mainnet-us-1.cosmostation.io",
-  "https://sui-mainnet-endpoint.blockvision.org",
   "https://sui-mainnet.public.blastapi.io",
-  "https://sui-mainnet-rpc.allthatnode.com",
   "https://sui-mainnet-eu-3.cosmostation.io",
   "https://sui1mainnet-rpc.chainode.tech",
   "https://mainnet.sui.rpcpool.com",
