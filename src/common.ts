@@ -268,7 +268,6 @@ export async function getProof(
 
 export async function runner(
   client: SuiClient,
-  difficulty: number,
   wallet: Ed25519Keypair,
   minerId: string,
   logger?: (_val: string) => void
@@ -281,6 +280,7 @@ export async function runner(
   let previousHash = new Uint8Array(32);
   let currentHash: Uint8Array | null = null;
   let nonce = BigInt(0);
+  let difficulty: number = 0;
   log("⛏️  Mining started");
   log("🔍 Looking for a valid proof...");
   while (true) {
@@ -296,6 +296,10 @@ export async function runner(
           currentHash = fetchedHash;
           previousHash = fetchedHash;
         }
+      }
+      if (difficulty === 0) {
+        const bus = await fetchBus(client);
+        difficulty = bus.difficulty;
       }
 
       const hash = createHash(currentHash, signerBytes, nonce);
@@ -335,6 +339,7 @@ export async function runner(
         log("🔍 Looking for next hash...");
         currentHash = null;
         nonce = BigInt(0);
+        difficulty = 0;
       } else {
         nonce++;
       }
