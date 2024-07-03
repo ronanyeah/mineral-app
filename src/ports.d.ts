@@ -17,6 +17,7 @@ interface Ports {
   submitProof: PortOut<{
     proof: Proof;
     miner: string;
+    coinObject: string | null;
   }>;
   mine: PortOut<string>;
   refreshTokens: PortOut<null>;
@@ -38,6 +39,7 @@ interface Ports {
   retrySubmitProof: PortIn<{
     proof: Proof;
     miner: string;
+    coinObject: string | null;
   }>;
 }
 
@@ -53,6 +55,7 @@ interface Balances {
   mineral: number;
   sui: number;
   mineralObjects: number;
+  coinObject: string | null;
 }
 
 interface Miner {

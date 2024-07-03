@@ -53,7 +53,7 @@ type Msg
     | RefreshTokens
     | UnsetMessage
     | ProofCb Proof
-    | RetrySubmitProof { proof : Proof, miner : String }
+    | RetrySubmitProof { proof : Proof, miner : String, coinObject : Maybe String }
     | MiningError String
     | StatsCb Ports.Stats
     | SwapDataCb Ports.SwapData

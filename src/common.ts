@@ -208,7 +208,8 @@ export async function buildMineTx(
   minerId: string,
   client: SuiClient,
   bus: Bus,
-  payer: string
+  payer: string,
+  coinObject?: string
 ): Promise<TransactionBlock> {
   const txb = new TransactionBlock();
   const shared = await getSharedVersion(bus.id, client);
@@ -222,7 +223,11 @@ export async function buildMineTx(
     clock: SUI_CLOCK_OBJECT_ID,
     miner: minerId,
   });
-  txb.transferObjects([createdObj], payer);
+  if (coinObject) {
+    txb.mergeCoins(coinObject, [createdObj]);
+  } else {
+    txb.transferObjects([createdObj], payer);
+  }
   return txb;
 }
 
@@ -483,9 +488,9 @@ export async function submitProof(
   nonce: bigint,
   client: SuiClient,
   miner: string,
-  logger?: (_val: MineEvent) => void
+  progressHandler: (_val: MineEvent) => void,
+  coinObject?: string
 ): Promise<SuiTransactionBlockResponse | null> {
-  const log = (val: MineEvent) => (logger ? logger(val) : null);
   const { bus, status } = await findBus(client);
 
   switch (status) {
@@ -494,7 +499,7 @@ export async function submitProof(
     }
     case BusStatus.ResetNeeded: {
       if (roll20()) {
-        log("resetting");
+        progressHandler("resetting");
         await execReset(client, wallet);
       } else {
         await waitUntilReady(client);
@@ -502,7 +507,7 @@ export async function submitProof(
       return null;
     }
     case BusStatus.RewardsExhausted: {
-      log("waiting");
+      progressHandler("waiting");
       await waitUntilReady(client);
       return null;
     }
@@ -513,12 +518,13 @@ export async function submitProof(
     miner,
     client,
     bus,
-    wallet.toSuiAddress()
+    wallet.toSuiAddress(),
+    coinObject
   );
 
   const signedTx = await buildTx(txb, client, wallet, 5000000);
 
-  log("simulating");
+  progressHandler("simulating");
   const dryRun = await client.dryRunTransactionBlock({
     transactionBlock: signedTx.bytes,
   });
@@ -530,7 +536,7 @@ export async function submitProof(
       const errMsg = dryRun.effects.status.error || "missing";
 
       if (errMsg.includes(constants.ENeedsReset.toString())) {
-        log("resetting");
+        progressHandler("resetting");
         await execReset(client, wallet);
         return true;
       } else if (errMsg.includes(constants.ERewardsExhausted.toString())) {
@@ -546,11 +552,11 @@ export async function submitProof(
   })();
 
   if (shouldRetry) {
-    log("retrying");
+    progressHandler("retrying");
     return null;
   }
 
-  log("submitting");
+  progressHandler("submitting");
   const res = await ship(signedTx, client);
 
   return res;

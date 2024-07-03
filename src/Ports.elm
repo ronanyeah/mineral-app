@@ -7,6 +7,7 @@ type alias Balances =
     { mineral : Int
     , sui : Int
     , mineralObjects : Int
+    , coinObject : Maybe String
     }
 
 
@@ -66,7 +67,7 @@ port claim :
     -> Cmd msg
 
 
-port submitProof : { proof : Proof, miner : String } -> Cmd msg
+port submitProof : { proof : Proof, miner : String, coinObject : Maybe String } -> Cmd msg
 
 
 port mine : String -> Cmd msg
@@ -124,4 +125,4 @@ port statsCb : (Stats -> msg) -> Sub msg
 port swapDataCb : (SwapData -> msg) -> Sub msg
 
 
-port retrySubmitProof : ({ proof : Proof, miner : String } -> msg) -> Sub msg
+port retrySubmitProof : ({ proof : Proof, miner : String, coinObject : Maybe String } -> msg) -> Sub msg

@@ -170,6 +170,7 @@ function persistMiningProgress({
       }
     })().catch((e) => {
       console.error(e);
+      alert(e.message);
     })
   );
 
@@ -236,13 +237,13 @@ function persistMiningProgress({
     })
   );
 
-  app.ports.submitProof.subscribe(({ proof, miner }) =>
+  app.ports.submitProof.subscribe((proofData) =>
     (async () => {
       console.log("start submit");
       if (!wallet) {
         return;
       }
-      const nonce = BigInt(proof.nonce);
+      const nonce = BigInt(proofData.proof.nonce);
 
       const handleEvent = (ev: MineEvent) => {
         switch (ev) {
@@ -260,13 +261,14 @@ function persistMiningProgress({
         wallet,
         nonce,
         provider,
-        miner,
-        handleEvent
+        proofData.miner,
+        handleEvent,
+        proofData.coinObject || undefined
       );
 
       if (!res) {
         console.log("retrying");
-        return app.ports.retrySubmitProof.send({ proof, miner });
+        return app.ports.retrySubmitProof.send(proofData);
       }
 
       console.log("Mining success!", res.digest);
@@ -359,11 +361,18 @@ async function fetchBalances(
       coinType: SUI_TYPE_ARG,
     }),
   ]);
+
+  mineralObjs.data.sort((a, b) => Number(a.balance) - Number(b.balance));
+  mineralObjs.data.reverse();
+  const largestBalance = mineralObjs.data[0];
+
   const mineralBalance = mineralObjs.data.reduce(
     (acc, obj) => acc + BigInt(obj.balance),
     BigInt(0)
   );
+
   return {
+    coinObject: largestBalance ? largestBalance.coinObjectId : null,
     mineralObjects: mineralObjs.data.length,
     mineral: Number(mineralBalance),
     sui: Number(suiBalance.totalBalance),
@@ -408,7 +417,7 @@ async function fetchMineral(client: SuiClient, address: string) {
     owner: address,
   });
   const coins = res.data;
-  coins.sort((a, b) => Number(Number(a.balance) - Number(b.balance)));
+  coins.sort((a, b) => Number(a.balance) - Number(b.balance));
   coins.reverse();
   return coins;
 }

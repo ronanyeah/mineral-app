@@ -196,21 +196,28 @@ update msg model =
 
         ProofCb proof ->
             model.wallet
-                |> Maybe.andThen .miningAccount
-                |> unwrap ( model, Cmd.none )
-                    (\acct ->
-                        ( { model | proof = Just proof }
-                        , if model.miningStatus == Nothing then
-                            -- Mining was stopped
-                            Cmd.none
+                |> Maybe.andThen
+                    (\wallet ->
+                        wallet.miningAccount
+                            |> Maybe.map
+                                (\acct ->
+                                    ( { model | proof = Just proof }
+                                    , if model.miningStatus == Nothing then
+                                        -- Mining was stopped
+                                        Cmd.none
 
-                          else
-                            Ports.submitProof
-                                { proof = proof
-                                , miner = acct.address
-                                }
-                        )
+                                      else
+                                        Ports.submitProof
+                                            { proof = proof
+                                            , miner = acct.address
+                                            , coinObject =
+                                                wallet.balances
+                                                    |> Maybe.andThen .coinObject
+                                            }
+                                    )
+                                )
                     )
+                |> Maybe.withDefault ( model, Cmd.none )
 
         WalletInputCh str ->
             ( { model | walletInput = str }
