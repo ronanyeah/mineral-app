@@ -56,7 +56,7 @@ export const getClient = () => {
 };
 
 export async function calcProfit(sdk: TurbosSdk, amount: bigint) {
-  const MINE_GAS_FEE = 2_113_820;
+  const MINE_GAS_FEE = 811_644;
 
   const [swap] = await sdk.trade.computeSwapResultV2({
     pools: [
