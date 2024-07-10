@@ -266,9 +266,6 @@ function persistMiningProgress({
       console.log("Mining success!", res.digest);
       app.ports.statusCb.send(4);
 
-      // Clear progress tracker
-      localStorage.removeItem(MINE_KEY);
-
       updateBalances(app, provider, wallet.toSuiAddress()).catch(console.error);
     })().catch((e) => {
       console.error(e);
