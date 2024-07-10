@@ -1,6 +1,6 @@
 module Update exposing (update)
 
-import Maybe.Extra exposing (unwrap)
+import Maybe.Extra exposing (isJust, unwrap)
 import Ports
 import Process
 import Task
@@ -46,23 +46,45 @@ update msg model =
             , Cmd.none
             )
 
-        BalancesCb bls ->
-            ( { model
-                | tokenRefreshInProgress = False
-                , wallet =
-                    model.wallet
-                        |> Maybe.map
-                            (\wl ->
-                                { wl
-                                    | balances =
-                                        Maybe.Extra.or
-                                            bls
-                                            wl.balances
-                                }
-                            )
-              }
-            , Cmd.none
-            )
+        BalancesCb res ->
+            res
+                |> unwrap
+                    ( { model
+                        | tokenRefreshInProgress = False
+                      }
+                    , Cmd.none
+                    )
+                    (\balances ->
+                        let
+                            balanceExhausted =
+                                balances.sui
+                                    < Utils.minimumGasBalance
+                                    && isJust model.miningStatus
+                        in
+                        ( { model
+                            | tokenRefreshInProgress = False
+                            , miningStatus =
+                                if balanceExhausted then
+                                    Nothing
+
+                                else
+                                    model.miningStatus
+                            , wallet =
+                                model.wallet
+                                    |> Maybe.map
+                                        (\wl ->
+                                            { wl
+                                                | balances = Just balances
+                                            }
+                                        )
+                          }
+                        , if balanceExhausted then
+                            Ports.stopMining ()
+
+                          else
+                            Cmd.none
+                        )
+                    )
 
         ManageCoins ->
             ( model
@@ -177,15 +199,9 @@ update msg model =
             , Ports.stopMining ()
             )
 
-        WalletCb kp ->
+        WalletCb wallet ->
             ( { model
-                | wallet =
-                    Just
-                        { address = kp.pub
-                        , privateKey = kp.pvt
-                        , balances = Nothing
-                        , miningAccount = Nothing
-                        }
+                | wallet = Just wallet
                 , walletInput = ""
               }
             , Cmd.none
@@ -201,7 +217,7 @@ update msg model =
                         wallet.miningAccount
                             |> Maybe.map
                                 (\acct ->
-                                    ( { model | proof = Just proof }
+                                    ( model
                                     , if model.miningStatus == Nothing then
                                         -- Mining was stopped
                                         Cmd.none
@@ -221,20 +237,6 @@ update msg model =
 
         WalletInputCh str ->
             ( { model | walletInput = str }
-            , Cmd.none
-            )
-
-        MinerCb miner ->
-            ( { model
-                | wallet =
-                    model.wallet
-                        |> Maybe.map
-                            (\wl ->
-                                { wl
-                                    | miningAccount = Just miner
-                                }
-                            )
-              }
             , Cmd.none
             )
 
@@ -273,10 +275,31 @@ update msg model =
             , Cmd.none
             )
 
-        StatusCb val ->
+        StatusCb statusCode ->
             let
+                status =
+                    case statusCode of
+                        1 ->
+                            SearchingForProof
+
+                        2 ->
+                            ValidProofFound
+
+                        3 ->
+                            SubmittingProof
+
+                        4 ->
+                            MiningSuccess
+
+                        5 ->
+                            WaitingForReset
+
+                        _ ->
+                            -- Unexpected case
+                            SearchingForProof
+
                 claimComplete =
-                    val == "4"
+                    status == MiningSuccess
             in
             if model.miningStatus == Nothing then
                 -- Mining was stopped
@@ -284,38 +307,16 @@ update msg model =
 
             else
                 ( { model
-                    | miningStatus =
-                        model.miningStatus
-                            |> Maybe.map
-                                (always
-                                    (if claimComplete then
-                                        "1"
-
-                                     else
-                                        val
-                                    )
-                                )
+                    | miningStatus = Just status
                     , hashesChecked =
                         if claimComplete then
                             0
 
                         else
                             model.hashesChecked
-                    , persistSuccessMessage =
-                        if claimComplete then
-                            True
-
-                        else
-                            model.persistSuccessMessage
-                    , proof =
-                        if claimComplete then
-                            Nothing
-
-                        else
-                            model.proof
                   }
                 , if claimComplete then
-                    [ Process.sleep 1000
+                    [ Process.sleep 3000
                         |> Task.perform (always UnsetMessage)
                     , model.wallet
                         |> Maybe.andThen .miningAccount
@@ -329,7 +330,14 @@ update msg model =
                 )
 
         UnsetMessage ->
-            ( { model | persistSuccessMessage = False }
+            ( { model
+                | miningStatus =
+                    if model.miningStatus == Just MiningSuccess then
+                        Just SearchingForProof
+
+                    else
+                        model.miningStatus
+              }
             , Cmd.none
             )
 
@@ -340,7 +348,7 @@ update msg model =
 
         Mine ->
             ( { model
-                | miningStatus = Just "1"
+                | miningStatus = Just SearchingForProof
                 , miningError = Nothing
               }
             , model.wallet

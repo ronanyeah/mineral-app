@@ -1,23 +1,52 @@
 /* eslint-disable fp/no-loops, fp/no-mutation, fp/no-mutating-methods, fp/no-let, no-constant-condition */
 
 import { program } from "commander";
+import { Bus } from "../codegen/mineral/mine/structs";
+import * as constants from "../constants";
+import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui.js/utils";
+import { epochReset } from "../codegen/mineral/mine/functions";
+import { TransactionBlock } from "@mysten/sui.js/transactions";
 import {
+  getSharedVersion,
+  BUSES,
+  buildTx,
+  ship,
+  extractError,
+  validateHash,
+  createHash,
+  MineEvent,
   getProof,
-  formatBig,
-  runner,
   getOrCreateMiner,
   fetchBus,
   CONFIG,
+  snooze,
+  submitProof,
+  fetchBuses,
 } from "../common";
 import { Config, MINE } from "../codegen/mineral/mine/structs";
+import numbro from "numbro";
+import { bcs } from "@mysten/sui.js/bcs";
 import { Miner } from "../codegen/mineral/miner/structs";
 import { decodeSuiPrivateKey } from "@mysten/sui.js/cryptography";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui.js/client";
+import {
+  SuiTransactionBlockResponse,
+  SuiClient,
+  getFullnodeUrl,
+} from "@mysten/sui.js/client";
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
 import { SUI_TYPE_ARG, SUI_DECIMALS } from "@mysten/sui.js/utils";
 import chalk from "chalk";
 
 const { WALLET, RPC } = process.env;
+
+// Use typescript-eslint or varsIgnorePattern
+/* eslint-disable no-unused-vars */
+enum BusStatus {
+  MineOk,
+  RewardsExhausted,
+  ResetNeeded,
+}
+/* eslint-enable no-unused-vars */
 
 const START_TIME = 1715534935000;
 const USAGE_GUIDE =
@@ -163,14 +192,280 @@ program
       if (!minerAccount) {
         return program.error("Miner account not created!");
       }
+
+      const handleEvent = (ev: MineEvent) => {
+        switch (ev) {
+          case "resetting": {
+            break;
+          }
+          case "retrying": {
+            break;
+          }
+          case "submitting": {
+            console.log("✅ Valid hash found");
+            console.log("📡 Submitting transaction");
+            break;
+          }
+          case "success": {
+            console.log("🏅 Mining success!");
+            console.log("🔍 Looking for next hash...");
+            break;
+          }
+          case "simulating": {
+            break;
+          }
+          case "checkpoint": {
+            break;
+          }
+        }
+      };
+
       runner(
         settings.rpc,
         bus.difficulty,
         settings.wallet,
         minerAccount,
-        console.log
+        handleEvent
       );
+
+      console.log("⛏️  Mining started");
+      console.log("🔍 Looking for a valid proof...");
     })().catch(console.error)
   );
 
 program.parse(process.argv);
+
+async function runner(
+  client: SuiClient,
+  difficulty: number,
+  wallet: Ed25519Keypair,
+  minerId: string,
+  logger?: (_val: MineEvent) => void
+) {
+  const log = (val: MineEvent) => (logger ? logger(val) : null);
+  const tag = wallet.toSuiAddress().slice(0, 8);
+
+  const signerBytes = bcs.Address.serialize(wallet.toSuiAddress()).toBytes();
+
+  let previousHash = new Uint8Array(32);
+  let currentHash: Uint8Array | null = null;
+  let nonce = BigInt(0);
+
+  while (true) {
+    await (async () => {
+      if (!currentHash) {
+        const miner = await Miner.fetch(client, minerId);
+        const fetchedHash = new Uint8Array(miner.currentHash);
+
+        // Check if RPC hash has changed
+        if (bufferEq(previousHash, fetchedHash)) {
+          return snooze(2000);
+        } else {
+          currentHash = fetchedHash;
+          previousHash = fetchedHash;
+        }
+      }
+
+      const hash = createHash(currentHash, signerBytes, nonce);
+      const hashIsValid = validateHash(hash, difficulty);
+      if (hashIsValid) {
+        const { bus, status } = await findBus(client);
+
+        switch (status) {
+          case BusStatus.MineOk: {
+            break;
+          }
+          case BusStatus.ResetNeeded: {
+            if (roll20()) {
+              log("resetting");
+              await execReset(client, wallet);
+            } else {
+              await waitUntilReady(client);
+            }
+            return null;
+          }
+          case BusStatus.RewardsExhausted: {
+            log("waiting");
+            await waitUntilReady(client);
+            return null;
+          }
+        }
+
+        const proofData = {
+          proof: {
+            currentHash: Array.from(currentHash),
+            nonce: Number(nonce),
+          },
+          miner: minerId,
+          coinObject: null,
+        };
+
+        const tx_response = await submitProof(
+          wallet,
+          client,
+          proofData,
+          bus,
+          log
+        );
+
+        if (!tx_response) {
+          return;
+        }
+
+        log("success");
+
+        currentHash = null;
+        nonce = BigInt(0);
+      } else {
+        if (nonce % BigInt(1_000_000) == BigInt(0)) {
+          log("checkpoint");
+          await snooze(0);
+        }
+        nonce++;
+      }
+    })().catch((e) => {
+      console.error(tag, e);
+      return snooze(500);
+    });
+  }
+}
+
+async function findBus(
+  client: SuiClient
+): Promise<{ bus: Bus; status: BusStatus }> {
+  const buses = await fetchBuses(client);
+
+  const bus = buses[0];
+
+  const closeToReset = canBeReset(bus.lastReset);
+
+  if (bus.rewards.value >= bus.rewardRate) {
+    return {
+      bus,
+      status: closeToReset ? BusStatus.ResetNeeded : BusStatus.MineOk,
+    };
+  } else {
+    const bus = buses[0];
+    return {
+      bus,
+      status: closeToReset ? BusStatus.ResetNeeded : BusStatus.RewardsExhausted,
+    };
+  }
+}
+
+function formatBig(n: bigint, decimals: number) {
+  return numbro(Number(n) / Math.pow(10, decimals)).format({
+    mantissa: 9,
+    trimMantissa: true,
+  });
+}
+
+function roll20(): boolean {
+  return Math.floor(Math.random() * 20) === 0;
+}
+
+function bufferEq(a: Uint8Array, b: Uint8Array): boolean {
+  function bufferToHex(buffer: Uint8Array): string {
+    return Array.from(buffer)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  return bufferToHex(a) === bufferToHex(b);
+}
+
+async function execReset(
+  client: SuiClient,
+  wallet: Ed25519Keypair
+): Promise<SuiTransactionBlockResponse | null> {
+  // TODO refactor
+  //const shouldRetry = await (async () => {
+  //if (dryRun.effects.status.status === "failure") {
+  //const contractErr = extractError(dryRun.effects.status);
+  //const errMsg = dryRun.effects.status.error || "missing";
+
+  //if (errMsg.includes(constants.ENeedsReset.toString())) {
+  //progressHandler("resetting");
+  //await execReset(client, wallet);
+  //return true;
+  //} else if (errMsg.includes(constants.ERewardsExhausted.toString())) {
+  //return true;
+  //} else if (contractErr) {
+  //throw Error(contractErr);
+  //} else {
+  //throw Error("Unknown error");
+  //}
+  //} else {
+  //return false;
+  //}
+  //})();
+
+  //if (shouldRetry) {
+  //progressHandler("retrying");
+  //return null;
+  //}
+
+  const bus = await fetchBus(client);
+
+  const shared = await getSharedVersion(bus.id, client);
+  const threshold = Number(bus.lastReset) + constants.EPOCH_LENGTH;
+
+  const now = Date.now();
+  if (now >= threshold) {
+    const txb = new TransactionBlock();
+    epochReset(txb, {
+      config: CONFIG,
+      buses: BUSES.map((x) =>
+        txb.sharedObjectRef({
+          objectId: x,
+          mutable: true,
+          initialSharedVersion: shared,
+        })
+      ),
+      clock: SUI_CLOCK_OBJECT_ID,
+    });
+
+    const preSign = await buildTx(txb, client, wallet, 5000000);
+
+    const dry = await client.dryRunTransactionBlock({
+      transactionBlock: preSign.bytes,
+    });
+
+    if (dry.effects.status.status === "failure") {
+      const errMsg = dry.effects.status.error;
+      if (errMsg) {
+        if (errMsg.includes(constants.EResetTooEarly.toString())) {
+          return null;
+        } else {
+          const contractErr = extractError(dry.effects.status);
+          throw Error(contractErr ? contractErr : errMsg);
+        }
+      } else {
+        throw Error("Unknown failure");
+      }
+    }
+
+    const res = await ship(preSign, client, { showObjectChanges: true });
+
+    return res;
+  }
+
+  return null;
+}
+
+async function waitUntilReady(client: SuiClient) {
+  while (true) {
+    const bus = await fetchBus(client);
+
+    if (canBeReset(bus.lastReset)) {
+      await snooze(2000);
+    } else {
+      break;
+    }
+  }
+}
+
+function canBeReset(ts: bigint) {
+  const threshold = Number(ts) + constants.EPOCH_LENGTH;
+
+  return Date.now() >= threshold - 2_000;
+}

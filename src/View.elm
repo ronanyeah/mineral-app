@@ -135,7 +135,9 @@ viewBody model =
                     balanceEmpty =
                         wallet.balances
                             |> unwrap True
-                                (.sui >> (==) 0)
+                                (\bals ->
+                                    bals.sui < Utils.minimumGasBalance
+                                )
                 in
                 if model.exportWarning then
                     [ [ [ [ img [ height <| px 25 ] "/icons/wallet_alt.png"
@@ -661,46 +663,49 @@ viewMine model _ =
             )
             (\status ->
                 let
-                    stage =
-                        if model.persistSuccessMessage then
-                            3
-
-                        else
-                            case status of
-                                "1" ->
-                                    0
-
-                                "2" ->
-                                    1
-
-                                "3" ->
-                                    2
-
-                                _ ->
-                                    3
-
                     txt =
-                        case stage of
-                            0 ->
+                        case status of
+                            SearchingForProof ->
                                 "🔍 Searching for a valid proof"
 
-                            1 ->
+                            ValidProofFound ->
                                 "✅ Valid proof calculated"
 
-                            2 ->
-                                "📡 Submitting claim"
+                            SubmittingProof ->
+                                "📡 Submitting proof"
 
-                            _ ->
+                            WaitingForReset ->
+                                "⏳ Waiting for next epoch"
+
+                            MiningSuccess ->
                                 "🏅 Mining success!"
                 in
-                [ List.range 0 3
+                [ let
+                    progressStage =
+                        case status of
+                            SearchingForProof ->
+                                0
+
+                            ValidProofFound ->
+                                1
+
+                            SubmittingProof ->
+                                2
+
+                            WaitingForReset ->
+                                2
+
+                            MiningSuccess ->
+                                3
+                  in
+                  List.range 0 3
                     |> List.map
                         (\n ->
                             el
                                 [ height <| px 20
                                 , width fill
                                 , Background.color green
-                                    |> whenAttr (n <= stage)
+                                    |> whenAttr (n <= progressStage)
                                 , Border.width 3
                                 , Border.color green
                                 ]
@@ -719,6 +724,7 @@ viewMine model _ =
                         |> text
                   ]
                     |> row [ centerX, spacing 10 ]
+                    |> when (status == SearchingForProof)
                 , [ spinningCog 25
                   , text "STOP"
                         |> txtBtn (Just StopMining)

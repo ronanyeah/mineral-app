@@ -7,7 +7,7 @@ type alias Model =
     { balance : Int
     , wallet : Maybe Wallet
     , walletInput : String
-    , miningStatus : Maybe String
+    , miningStatus : Maybe MiningStatus
     , view : View
     , claimInput : String
     , withdrawMax : Bool
@@ -16,9 +16,7 @@ type alias Model =
     , showSecret : Bool
     , confirmDelete : Bool
     , tokenRefreshInProgress : Bool
-    , persistSuccessMessage : Bool
     , addressInput : String
-    , proof : Maybe Proof
     , currentTime : Int
     , miningError : Maybe String
     , hashesChecked : Int
@@ -30,13 +28,12 @@ type alias Model =
 
 type Msg
     = BalancesCb (Maybe Balances)
-    | WalletCb Keypair
-    | MinerCb Miner
+    | WalletCb Wallet
     | MinerCreatedCb Miner
     | Mine
     | CreateWallet
     | Copy String
-    | StatusCb String
+    | StatusCb Int
     | WalletInputCh String
     | ConfirmWallet
     | StopMining
@@ -53,7 +50,7 @@ type Msg
     | RefreshTokens
     | UnsetMessage
     | ProofCb Proof
-    | RetrySubmitProof { proof : Proof, miner : String, coinObject : Maybe String }
+    | RetrySubmitProof ProofData
     | MiningError String
     | StatsCb Ports.Stats
     | SwapDataCb Ports.SwapData
@@ -81,12 +78,16 @@ type ClaimStatus
     | Response (Result String String)
 
 
+type MiningStatus
+    = SearchingForProof
+    | ValidProofFound
+    | SubmittingProof
+    | MiningSuccess
+    | WaitingForReset
+
+
 type alias Wallet =
-    { address : String
-    , privateKey : String
-    , balances : Maybe Balances
-    , miningAccount : Maybe Miner
-    }
+    Ports.Wallet
 
 
 type alias Balances =
@@ -103,3 +104,7 @@ type alias Keypair =
 
 type alias Proof =
     Ports.Proof
+
+
+type alias ProofData =
+    Ports.ProofData

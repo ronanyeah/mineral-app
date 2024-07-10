@@ -22,7 +22,6 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { balance = 0
       , exportWarning = False
-      , persistSuccessMessage = False
       , addressInput = ""
       , miningStatus = Nothing
       , hashesChecked = 0
@@ -32,7 +31,6 @@ init flags =
       , view = ViewMine
       , claimStatus = Standby
       , showSecret = False
-      , proof = Nothing
       , confirmDelete = False
       , currentTime = flags.time
       , tokenRefreshInProgress = False
@@ -61,7 +59,6 @@ subscriptions _ =
         [ Ports.balancesCb BalancesCb
         , Ports.walletCb WalletCb
         , Ports.statusCb StatusCb
-        , Ports.minerAccountCb MinerCb
         , Ports.minerCreatedCb MinerCreatedCb
         , Ports.proofCb ProofCb
         , Ports.retrySubmitProof RetrySubmitProof

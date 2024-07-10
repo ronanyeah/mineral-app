@@ -4,6 +4,11 @@ import FormatNumber
 import FormatNumber.Locales exposing (usLocale)
 
 
+minimumGasBalance : Int
+minimumGasBalance =
+    2500000
+
+
 formatFloat =
     formatFloatN 2
 

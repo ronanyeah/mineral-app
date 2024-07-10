@@ -1,10 +1,10 @@
 /* eslint-disable fp/no-loops, fp/no-mutation, fp/no-mutating-methods, fp/no-let, no-constant-condition */
 
 import { keccak_256 } from "@noble/hashes/sha3";
-import { mine, epochReset } from "./codegen/mineral/mine/functions";
+import { mine } from "./codegen/mineral/mine/functions";
 import { register } from "./codegen/mineral/miner/functions";
 import { SUI_CLOCK_OBJECT_ID, MIST_PER_SUI } from "@mysten/sui.js/utils";
-import { bcs } from "@mysten/sui.js/bcs";
+import { ProofData } from "./ports";
 import * as constants from "./constants";
 import {
   ExecutionStatus,
@@ -16,7 +16,6 @@ import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { Ed25519Keypair } from "@mysten/sui.js/dist/cjs/keypairs/ed25519";
 import { Bus } from "./codegen/mineral/mine/structs";
 import { Miner } from "./codegen/mineral/miner/structs";
-import numbro from "numbro";
 import { SignatureWithBytes } from "@mysten/sui.js/dist/cjs/cryptography";
 import { TurbosSdk } from "turbos-clmm-sdk";
 
@@ -38,16 +37,9 @@ export type MineEvent =
   | "retrying"
   | "simulating"
   | "submitting"
+  | "success"
+  | "checkpoint"
   | "waiting";
-
-// Use typescript-eslint or varsIgnorePattern
-/* eslint-disable no-unused-vars */
-enum BusStatus {
-  MineOk,
-  RewardsExhausted,
-  ResetNeeded,
-}
-/* eslint-enable no-unused-vars */
 
 export const getClient = () => {
   return new SuiClient({
@@ -84,13 +76,23 @@ export function fetchBus(client: SuiClient) {
   return Bus.fetch(client, BUSES[0]);
 }
 
-function roll20(): boolean {
-  return Math.floor(Math.random() * 20) === 0;
+export async function findValidBus(client: SuiClient): Promise<Bus | null> {
+  const buses = await fetchBuses(client);
+
+  const bus = buses[0];
+
+  if (bus.rewards.value >= bus.rewardRate) {
+    const threshold = Number(bus.lastReset) + constants.EPOCH_LENGTH;
+
+    const closeToReset = Date.now() >= threshold - 2_000;
+
+    return closeToReset ? null : bus;
+  } else {
+    return null;
+  }
 }
 
-export async function findBus(
-  client: SuiClient
-): Promise<{ bus: Bus; status: BusStatus }> {
+export async function fetchBuses(client: SuiClient): Promise<Bus[]> {
   const objs = await client.multiGetObjects({
     ids: BUSES,
     options: { showContent: true },
@@ -104,25 +106,7 @@ export async function findBus(
   buses.sort((a, b) => Number(a.rewards.value - b.rewards.value));
   buses.reverse();
 
-  const busWithRewards = buses.find(
-    (bus) => bus.rewards.value >= bus.rewardRate
-  );
-  if (busWithRewards) {
-    return {
-      bus: busWithRewards,
-      status: canBeReset(busWithRewards.lastReset)
-        ? BusStatus.ResetNeeded
-        : BusStatus.MineOk,
-    };
-  } else {
-    const bus = buses[0];
-    return {
-      bus,
-      status: canBeReset(bus.lastReset)
-        ? BusStatus.ResetNeeded
-        : BusStatus.RewardsExhausted,
-    };
-  }
+  return buses;
 }
 
 export async function ship(
@@ -145,9 +129,9 @@ export async function ship(
     options: opts,
   });
 
-  const _exec = await client.waitForTransactionBlock({
-    digest: res.digest,
-  });
+  //const _exec = await client.waitForTransactionBlock({
+  //digest: res.digest,
+  //});
 
   return res;
 }
@@ -271,165 +255,6 @@ export async function getProof(
   return miner && miner.data ? miner.data.objectId : null;
 }
 
-export async function runner(
-  client: SuiClient,
-  difficulty: number,
-  wallet: Ed25519Keypair,
-  minerId: string,
-  logger?: (_val: string) => void
-) {
-  const log = (val: string) => (logger ? logger(val) : null);
-  const tag = wallet.toSuiAddress().slice(0, 8);
-
-  const signerBytes = bcs.Address.serialize(wallet.toSuiAddress()).toBytes();
-
-  let previousHash = new Uint8Array(32);
-  let currentHash: Uint8Array | null = null;
-  let nonce = BigInt(0);
-  log("⛏️  Mining started");
-  log("🔍 Looking for a valid proof...");
-  while (true) {
-    await (async () => {
-      if (!currentHash) {
-        const miner = await Miner.fetch(client, minerId);
-        const fetchedHash = new Uint8Array(miner.currentHash);
-
-        // Check if RPC hash has changed
-        if (bufferEq(previousHash, fetchedHash)) {
-          return snooze(2000);
-        } else {
-          currentHash = fetchedHash;
-          previousHash = fetchedHash;
-        }
-      }
-
-      const hash = createHash(currentHash, signerBytes, nonce);
-      const hashIsValid = validateHash(hash, difficulty);
-      if (hashIsValid) {
-        const handleEvent = (ev: MineEvent) => {
-          switch (ev) {
-            case "resetting": {
-              break;
-            }
-            case "retrying": {
-              break;
-            }
-            case "submitting": {
-              log("✅ Valid hash found");
-              log("📡 Submitting transaction");
-              break;
-            }
-            case "simulating": {
-              break;
-            }
-          }
-        };
-        const res = await submitProof(
-          wallet,
-          nonce,
-          client,
-          minerId,
-          handleEvent
-        );
-
-        if (!res) {
-          return;
-        }
-
-        log("🏅 Mining success!");
-        log("🔍 Looking for next hash...");
-        currentHash = null;
-        nonce = BigInt(0);
-      } else {
-        nonce++;
-      }
-    })().catch((e) => {
-      console.error(tag, e);
-      return snooze(500);
-    });
-  }
-}
-
-export async function waitUntilReset(client: SuiClient) {
-  const bus = await fetchBus(client);
-
-  const threshold = Number(bus.lastReset) + constants.EPOCH_LENGTH;
-
-  if (Date.now() < threshold) {
-    await snooze(threshold - Date.now());
-  }
-}
-
-export async function waitUntilReady(client: SuiClient) {
-  while (true) {
-    const bus = await fetchBus(client);
-
-    if (canBeReset(bus.lastReset)) {
-      await snooze(2000);
-    } else {
-      break;
-    }
-  }
-}
-
-export function canBeReset(ts: bigint) {
-  const threshold = Number(ts) + constants.EPOCH_LENGTH;
-
-  return Date.now() >= threshold - 2_000;
-}
-
-export async function execReset(
-  client: SuiClient,
-  wallet: Ed25519Keypair
-): Promise<SuiTransactionBlockResponse | null> {
-  const bus = await fetchBus(client);
-
-  const shared = await getSharedVersion(bus.id, client);
-  const threshold = Number(bus.lastReset) + constants.EPOCH_LENGTH;
-
-  const now = Date.now();
-  if (now >= threshold) {
-    const txb = new TransactionBlock();
-    epochReset(txb, {
-      config: CONFIG,
-      buses: BUSES.map((x) =>
-        txb.sharedObjectRef({
-          objectId: x,
-          mutable: true,
-          initialSharedVersion: shared,
-        })
-      ),
-      clock: SUI_CLOCK_OBJECT_ID,
-    });
-
-    const preSign = await buildTx(txb, client, wallet, 5000000);
-
-    const dry = await client.dryRunTransactionBlock({
-      transactionBlock: preSign.bytes,
-    });
-
-    if (dry.effects.status.status === "failure") {
-      const errMsg = dry.effects.status.error;
-      if (errMsg) {
-        if (errMsg.includes(constants.EResetTooEarly.toString())) {
-          return null;
-        } else {
-          const contractErr = extractError(dry.effects.status);
-          throw Error(contractErr ? contractErr : errMsg);
-        }
-      } else {
-        throw Error("Unknown failure");
-      }
-    }
-
-    const res = await ship(preSign, client, { showObjectChanges: true });
-
-    return res;
-  }
-
-  return null;
-}
-
 export async function getOrCreateMiner(
   wallet: Ed25519Keypair,
   client: SuiClient
@@ -485,79 +310,31 @@ export async function getSharedVersion(
 
 export async function submitProof(
   wallet: Ed25519Keypair,
-  nonce: bigint,
   client: SuiClient,
-  miner: string,
-  progressHandler: (_val: MineEvent) => void,
-  coinObject?: string
-): Promise<SuiTransactionBlockResponse | null> {
-  const { bus, status } = await findBus(client);
-
-  switch (status) {
-    case BusStatus.MineOk: {
-      break;
-    }
-    case BusStatus.ResetNeeded: {
-      if (roll20()) {
-        progressHandler("resetting");
-        await execReset(client, wallet);
-      } else {
-        await waitUntilReady(client);
-      }
-      return null;
-    }
-    case BusStatus.RewardsExhausted: {
-      progressHandler("waiting");
-      await waitUntilReady(client);
-      return null;
-    }
-  }
-
+  proofData: ProofData,
+  bus: Bus,
+  progressHandler: (_val: MineEvent) => void
+): Promise<SuiTransactionBlockResponse> {
   const txb = await buildMineTx(
-    nonce,
-    miner,
+    BigInt(proofData.proof.nonce),
+    proofData.miner,
     client,
     bus,
     wallet.toSuiAddress(),
-    coinObject
+    proofData.coinObject || undefined
   );
 
   const signedTx = await buildTx(txb, client, wallet, 5000000);
 
   progressHandler("simulating");
-  const dryRun = await client.dryRunTransactionBlock({
+  const _dryRun = await client.dryRunTransactionBlock({
     transactionBlock: signedTx.bytes,
   });
 
-  // TODO refactor
-  const shouldRetry = await (async () => {
-    if (dryRun.effects.status.status === "failure") {
-      const contractErr = extractError(dryRun.effects.status);
-      const errMsg = dryRun.effects.status.error || "missing";
-
-      if (errMsg.includes(constants.ENeedsReset.toString())) {
-        progressHandler("resetting");
-        await execReset(client, wallet);
-        return true;
-      } else if (errMsg.includes(constants.ERewardsExhausted.toString())) {
-        return true;
-      } else if (contractErr) {
-        throw Error(contractErr);
-      } else {
-        throw Error("Unknown error");
-      }
-    } else {
-      return false;
-    }
-  })();
-
-  if (shouldRetry) {
-    progressHandler("retrying");
-    return null;
-  }
-
   progressHandler("submitting");
   const res = await ship(signedTx, client);
+
+  await waitUntilNextHash(client, proofData.miner, proofData.proof.currentHash);
 
   return res;
 }
@@ -575,23 +352,40 @@ export interface MineResult {
   nonce: bigint;
 }
 
-export function formatBig(n: bigint, decimals: number) {
-  return numbro(Number(n) / Math.pow(10, decimals)).format({
-    mantissa: 9,
-    trimMantissa: true,
-  });
-}
-
-function snooze(n: number) {
+export function snooze(n: number) {
   return new Promise((r) => setTimeout(() => r(true), n));
 }
 
-function bufferToHex(buffer: Uint8Array): string {
-  return Array.from(buffer)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+export async function waitUntilNextEpoch(client: SuiClient) {
+  const bus = await fetchBus(client);
+  const lastReset = bus.lastReset;
+  const nextReset = Number(bus.lastReset) + constants.EPOCH_LENGTH;
+  const timeUntilNextReset = nextReset - Date.now();
+  await snooze(timeUntilNextReset);
+  while (true) {
+    const freshBus = await fetchBus(client);
+    if (freshBus.lastReset !== lastReset) {
+      break;
+    } else {
+      await snooze(1500);
+    }
+  }
 }
 
-function bufferEq(a: Uint8Array, b: Uint8Array): boolean {
-  return bufferToHex(a) === bufferToHex(b);
+export async function waitUntilNextHash(
+  client: SuiClient,
+  miner: string,
+  currentHash: number[]
+) {
+  let current = currentHash.join();
+  let attempts = 0;
+  while (attempts < 5) {
+    const minerObj = await Miner.fetch(client, miner);
+    if (minerObj.currentHash.join() !== current) {
+      break;
+    } else {
+      attempts += 1;
+      await snooze(1500);
+    }
+  }
 }

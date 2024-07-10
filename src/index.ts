@@ -11,6 +11,8 @@ import {
   fetchBus,
   CONFIG,
   launch,
+  findValidBus,
+  waitUntilNextEpoch,
 } from "./common";
 import { Network, TurbosSdk } from "turbos-clmm-sdk";
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
@@ -122,6 +124,7 @@ function persistMiningProgress({
   app.ports.clearWallet.subscribe(() => {
     wallet = null;
     localStorage.removeItem(WALLET_KEY);
+    localStorage.removeItem(MINE_KEY);
   });
 
   app.ports.registerMiner.subscribe(() =>
@@ -147,8 +150,7 @@ function persistMiningProgress({
       if (!wallet) {
         return app.ports.balancesCb.send(null);
       }
-      const balances = await fetchBalances(provider, wallet.toSuiAddress());
-      app.ports.balancesCb.send(balances);
+      await updateBalances(app, provider, wallet.toSuiAddress());
     })().catch((e) => {
       console.error(e);
       app.ports.balancesCb.send(null);
@@ -186,18 +188,19 @@ function persistMiningProgress({
       wallet = kp;
 
       const pub = kp.toSuiAddress();
-      app.ports.walletCb.send({ pub, pvt: kp.getSecretKey() });
-      const proof = await getProof(provider, pub);
-      if (proof) {
-        app.ports.minerAccountCb.send({
-          address: proof,
-          claims: 0,
-        });
-        await updateBalances(app, provider, pub);
-      } else {
-        const balances = await fetchBalances(provider, pub);
-        app.ports.balancesCb.send(balances);
-      }
+      const minerObjectAddress = await getProof(provider, pub);
+      app.ports.walletCb.send({
+        address: pub,
+        privateKey: kp.getSecretKey(),
+        balances: null,
+        miningAccount: minerObjectAddress
+          ? {
+              address: minerObjectAddress,
+              claims: 0,
+            }
+          : null,
+      });
+      await updateBalances(app, provider, pub);
     })().catch((e) => {
       console.error(e);
     })
@@ -215,17 +218,7 @@ function persistMiningProgress({
   });
 
   if (wallet) {
-    (async () => {
-      const proof = await getProof(provider, wallet.toSuiAddress());
-      if (proof) {
-        console.log("mining account loaded");
-        await updateBalances(app, provider, wallet.toSuiAddress());
-      } else {
-        console.log("no mining account");
-        const balances = await fetchBalances(provider, wallet.toSuiAddress());
-        app.ports.balancesCb.send(balances);
-      }
-    })().catch(console.error);
+    updateBalances(app, provider, wallet.toSuiAddress()).catch(console.error);
   }
 
   app.ports.claim.subscribe((_) =>
@@ -243,13 +236,11 @@ function persistMiningProgress({
       if (!wallet) {
         return;
       }
-      const nonce = BigInt(proofData.proof.nonce);
-
       const handleEvent = (ev: MineEvent) => {
         switch (ev) {
           case "submitting": {
             console.log("submitting transaction...");
-            app.ports.statusCb.send("3");
+            app.ports.statusCb.send(3);
             break;
           }
           default: {
@@ -257,22 +248,23 @@ function persistMiningProgress({
           }
         }
       };
-      const res = await submitProof(
-        wallet,
-        nonce,
-        provider,
-        proofData.miner,
-        handleEvent,
-        proofData.coinObject || undefined
-      );
-
-      if (!res) {
+      const validBus = await findValidBus(provider);
+      if (!validBus) {
+        app.ports.statusCb.send(5);
+        await waitUntilNextEpoch(provider);
         console.log("retrying");
         return app.ports.retrySubmitProof.send(proofData);
       }
+      const res = await submitProof(
+        wallet,
+        provider,
+        proofData,
+        validBus,
+        handleEvent
+      );
 
       console.log("Mining success!", res.digest);
-      app.ports.statusCb.send("4");
+      app.ports.statusCb.send(4);
 
       // Clear progress tracker
       localStorage.removeItem(MINE_KEY);
@@ -296,7 +288,6 @@ function persistMiningProgress({
         worker.onmessage = (e) =>
           (async () => {
             if (!wallet) {
-              // TODO should stop worker
               throw Error("Wallet unavailable");
             }
 
@@ -311,7 +302,7 @@ function persistMiningProgress({
             if ("proof" in e.data) {
               const mineRes: MineResult = e.data;
               console.log("proof solved with nonce:", mineRes.nonce.toString());
-              app.ports.statusCb.send("2");
+              app.ports.statusCb.send(2);
               if (worker) {
                 worker.terminate();
                 worker = null;
@@ -322,14 +313,14 @@ function persistMiningProgress({
               });
             }
 
-            // TODO should stop worker
             throw Error("Unknown worker response");
-          })().catch(
-            //TODO handle crash
-            console.error
-          );
+          })().catch((e) => {
+            console.error(e);
+            app.ports.miningError.send("Message handling failure");
+          });
         worker.onerror = (e) => {
           console.error(e);
+          app.ports.miningError.send("Worker error");
         };
       }
 
