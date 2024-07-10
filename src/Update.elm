@@ -199,6 +199,21 @@ update msg model =
             , Ports.stopMining ()
             )
 
+        ProofSubmitError e ->
+            -- If submission fails revert to mining flow to re-verify proof
+            -- Progress should not be lost
+            model.wallet
+                |> Maybe.andThen .miningAccount
+                |> unwrap ( model, Cmd.none )
+                    (\minerObj ->
+                        ( { model
+                            | miningStatus = Just SearchingForProof
+                            , miningError = Nothing
+                          }
+                        , Ports.mine minerObj.address
+                        )
+                    )
+
         WalletCb wallet ->
             ( { model
                 | wallet = Just wallet
@@ -208,7 +223,15 @@ update msg model =
             )
 
         RetrySubmitProof data ->
-            ( model, Ports.submitProof data )
+            if model.miningStatus == Nothing then
+                ( model, Cmd.none )
+
+            else
+                ( { model
+                    | miningStatus = Just SubmittingProof
+                  }
+                , Ports.submitProof data
+                )
 
         ProofCb proof ->
             model.wallet
@@ -308,6 +331,7 @@ update msg model =
             else
                 ( { model
                     | miningStatus = Just status
+                    , miningError = Nothing
                     , hashesChecked =
                         if claimComplete then
                             0

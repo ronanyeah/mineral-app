@@ -24,6 +24,7 @@ interface Ports {
   minerCreatedCb: PortIn<Miner>;
   statusCb: PortIn<number>;
   miningError: PortIn<string>;
+  proofSubmitError: PortIn<string>;
   balancesCb: PortIn<Balances | null>;
   walletCb: PortIn<Wallet>;
   claimCb: PortIn<any>;

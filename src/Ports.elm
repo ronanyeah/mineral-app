@@ -116,6 +116,9 @@ port statusCb : (Int -> msg) -> Sub msg
 port miningError : (String -> msg) -> Sub msg
 
 
+port proofSubmitError : (String -> msg) -> Sub msg
+
+
 port balancesCb : (Maybe Balances -> msg) -> Sub msg
 
 

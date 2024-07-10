@@ -63,6 +63,7 @@ subscriptions _ =
         , Ports.proofCb ProofCb
         , Ports.retrySubmitProof RetrySubmitProof
         , Ports.miningError MiningError
+        , Ports.proofSubmitError ProofSubmitError
         , Ports.hashCountCb HashCountCb
         , Ports.statsCb StatsCb
         , Ports.swapDataCb SwapDataCb

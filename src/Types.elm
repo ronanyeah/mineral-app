@@ -41,6 +41,7 @@ type Msg
     | AddressInputCh String
     | ClaimInputCh String
     | HashCountCb Int
+    | ProofSubmitError String
     | ToggleMax
     | ClaimMax
     | ClaimRes (Result String String)

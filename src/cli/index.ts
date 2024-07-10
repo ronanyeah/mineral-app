@@ -7,18 +7,14 @@ import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui.js/utils";
 import { epochReset } from "../codegen/mineral/mine/functions";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import {
-  getSharedVersion,
-  BUSES,
-  buildTx,
-  ship,
-  extractError,
+  launch,
+  handleMineralError,
   validateHash,
   createHash,
   MineEvent,
   getProof,
   getOrCreateMiner,
   fetchBus,
-  CONFIG,
   snooze,
   submitProof,
   fetchBuses,
@@ -127,7 +123,7 @@ program
   .description("View global Mineral stats")
   .action((_options) =>
     (async () => {
-      const config = await Config.fetch(settings.rpc, CONFIG);
+      const config = await Config.fetch(settings.rpc, constants.CONFIG);
       const bus = await fetchBus(settings.rpc);
       console.log(
         "Total distributed rewards:",
@@ -300,13 +296,8 @@ async function runner(
           coinObject: null,
         };
 
-        const tx_response = await submitProof(
-          wallet,
-          client,
-          proofData,
-          bus,
-          log
-        );
+        log("submitting");
+        const tx_response = await submitProof(wallet, client, proofData, bus);
 
         if (!tx_response) {
           return;
@@ -406,45 +397,28 @@ async function execReset(
 
   const bus = await fetchBus(client);
 
-  const shared = await getSharedVersion(bus.id, client);
   const threshold = Number(bus.lastReset) + constants.EPOCH_LENGTH;
 
   const now = Date.now();
   if (now >= threshold) {
     const txb = new TransactionBlock();
     epochReset(txb, {
-      config: CONFIG,
-      buses: BUSES.map((x) =>
+      config: constants.CONFIG,
+      buses: constants.BUSES.map((x) =>
         txb.sharedObjectRef({
           objectId: x,
           mutable: true,
-          initialSharedVersion: shared,
+          initialSharedVersion: 0,
         })
       ),
       clock: SUI_CLOCK_OBJECT_ID,
     });
 
-    const preSign = await buildTx(txb, client, wallet, 5000000);
-
-    const dry = await client.dryRunTransactionBlock({
-      transactionBlock: preSign.bytes,
-    });
-
-    if (dry.effects.status.status === "failure") {
-      const errMsg = dry.effects.status.error;
-      if (errMsg) {
-        if (errMsg.includes(constants.EResetTooEarly.toString())) {
-          return null;
-        } else {
-          const contractErr = extractError(dry.effects.status);
-          throw Error(contractErr ? contractErr : errMsg);
-        }
-      } else {
-        throw Error("Unknown failure");
-      }
+    const res = await launch(txb, client, wallet, 1_000_000);
+    if (!res.effects) {
+      throw Error("Tx effects missing");
     }
-
-    const res = await ship(preSign, client, { showObjectChanges: true });
+    handleMineralError(res.effects);
 
     return res;
   }
