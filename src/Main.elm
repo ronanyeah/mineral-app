@@ -32,7 +32,6 @@ init flags =
       , claimStatus = Standby
       , showSecret = False
       , confirmDelete = False
-      , currentTime = flags.time
       , tokenRefreshInProgress = False
       , miningError = Nothing
       , stats = Nothing

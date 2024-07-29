@@ -17,7 +17,6 @@ type alias Model =
     , confirmDelete : Bool
     , tokenRefreshInProgress : Bool
     , addressInput : String
-    , currentTime : Int
     , miningError : Maybe String
     , hashesChecked : Int
     , stats : Maybe (Maybe Ports.Stats)
@@ -55,7 +54,6 @@ type Msg
     | MiningError String
     | StatsCb Ports.Stats
     | SwapDataCb Ports.SwapData
-    | Tick Int
     | ManageCoins
 
 

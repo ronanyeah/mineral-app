@@ -11,13 +11,6 @@ import Utils exposing (..)
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Tick n ->
-            ( { model
-                | currentTime = n
-              }
-            , Cmd.none
-            )
-
         ClearWallet ->
             if model.confirmDelete then
                 ( { model

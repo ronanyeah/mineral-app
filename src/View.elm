@@ -14,10 +14,6 @@ import Types exposing (..)
 import Utils exposing (..)
 
 
-startTime =
-    0
-
-
 view : Model -> Html Msg
 view model =
     [ [ logo 70
@@ -34,30 +30,7 @@ view model =
       ]
         |> row [ spacing 10, centerX ]
         |> when False
-    , if startTime < model.currentTime then
-        viewBody model
-
-      else
-        [ [ Img.x 20
-          , text ".com/MineralSupply"
-                |> el [ Font.size 22 ]
-          ]
-            |> row []
-            |> linkOut "https://twitter.com/MineralSupply" []
-        , timeDifference model.currentTime startTime
-            |> (\( hours, mins, seconds ) ->
-                    [ String.padLeft 2 '0' (String.fromInt hours)
-                    , ":"
-                    , String.padLeft 2 '0' (String.fromInt mins)
-                    , ":"
-                    , String.padLeft 2 '0' (String.fromInt seconds)
-                    ]
-                        |> String.concat
-               )
-            |> text
-            |> el [ Font.size 50, centerX ]
-        ]
-            |> column [ centerX, spacing 20 ]
+    , viewBody model
     ]
         |> column
             [ cappedWidth 450
@@ -879,30 +852,6 @@ txtBtn msg =
 
 horizRule =
     el [ width fill, height <| px 2, Background.color white ] none
-
-
-timeDifference : Int -> Int -> ( Int, Int, Int )
-timeDifference timestamp1 timestamp2 =
-    let
-        diffMillis =
-            abs (timestamp1 - timestamp2)
-
-        totalSeconds =
-            diffMillis // 1000
-
-        hours =
-            totalSeconds // 3600
-
-        remainingSecondsAfterHours =
-            modBy 3600 totalSeconds
-
-        minutes =
-            remainingSecondsAfterHours // 60
-
-        seconds =
-            modBy 60 remainingSecondsAfterHours
-    in
-    ( hours, minutes, seconds )
 
 
 formatMINE n d =
