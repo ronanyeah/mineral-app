@@ -3,14 +3,14 @@
 [Downloads](https://github.com/ronanyeah/mineral-app/releases)
 
 #### Linux
-```
+```bash
 ./mineral-linux help
 export WALLET=suiprivkey11111111111111111111111111111111
 ./mineral-linux mine
 ```
 
 #### MacOS
-```
+```bash
 ./mineral-macos help
 export WALLET=suiprivkey11111111111111111111111111111111
 ./mineral-macos mine
@@ -30,4 +30,12 @@ set WALLET=suiprivkey11111111111111111111111111111111
 .\mineral-win.exe mine
 ```
 
-__NOTE:__ In addition to `WALLET`, the `RPC` environment variable can be used to override the default `https://fullnode.mainnet.sui.io:443`.
+---
+
+#### Custom RPC
+
+Use the `RPC` enviroment variable to set a custom RPC endpoint:
+
+```bash
+export RPC="https://sui-mainnet.blockvision.org:443/v1/12345"
+```

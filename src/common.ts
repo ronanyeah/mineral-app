@@ -19,22 +19,13 @@ import { Miner } from "./codegen/mineral/miner/structs";
 import { SignatureWithBytes } from "@mysten/sui.js/dist/cjs/cryptography";
 import { TurbosSdk } from "turbos-clmm-sdk";
 
-export type MineEvent =
-  | "resetting"
-  | "retrying"
-  | "simulating"
-  | "submitting"
-  | "success"
-  | "checkpoint"
-  | "waiting";
-
 export const getClient = () => {
   return new SuiClient({
     url: new URL(process.env.RPC!).toString(),
   });
 };
 
-export async function calcProfit(sdk: TurbosSdk, amount: bigint) {
+export async function calcSwapVsMine(sdk: TurbosSdk, mineReward: bigint) {
   const MINE_GAS_FEE = 811_644;
 
   const [swap] = await sdk.trade.computeSwapResultV2({
@@ -42,7 +33,7 @@ export async function calcProfit(sdk: TurbosSdk, amount: bigint) {
       {
         pool: "0x36f838ab69ea41d959de58dd5b2cb00c9deb7bc1e851a82097b66dfd629f0f3f",
         a2b: true,
-        amountSpecified: amount.toString(),
+        amountSpecified: mineReward.toString(),
       },
     ],
     address:
@@ -60,7 +51,10 @@ export async function calcProfit(sdk: TurbosSdk, amount: bigint) {
 }
 
 export function fetchBus(client: SuiClient) {
-  return Bus.fetch(client, constants.BUSES[0]);
+  return Bus.fetch(
+    client,
+    constants.BUSES[Math.floor(Math.random() * constants.BUSES.length)]
+  );
 }
 
 export async function findValidBus(client: SuiClient): Promise<Bus | null> {
@@ -185,26 +179,23 @@ export async function launch(
 }
 
 export function buildMineTx(
-  client: SuiClient,
-  nonce: bigint,
-  minerId: string,
+  proofData: ProofData,
   busId: string,
-  payer: string,
-  coinObject?: string
+  payer: string
 ): TransactionBlock {
   const txb = new TransactionBlock();
   const [createdObj] = mine(txb, {
-    nonce,
+    nonce: BigInt(proofData.proof.nonce),
     bus: txb.sharedObjectRef({
       objectId: busId,
       mutable: true,
       initialSharedVersion: 0,
     }),
     clock: SUI_CLOCK_OBJECT_ID,
-    miner: minerId,
+    miner: proofData.miner,
   });
-  if (coinObject) {
-    txb.mergeCoins(coinObject, [createdObj]);
+  if (proofData.coinObject) {
+    txb.mergeCoins(proofData.coinObject, [createdObj]);
   } else {
     txb.transferObjects([createdObj], payer);
   }
@@ -242,19 +233,22 @@ export function int64to8(n: bigint) {
 export async function getProof(
   client: SuiClient,
   address: string
-): Promise<string | null> {
+): Promise<Miner | null> {
   const res = await client.getOwnedObjects({
     owner: address,
     filter: { StructType: Miner.$typeName },
+    options: { showContent: true },
   });
   const [miner] = res.data;
-  return miner && miner.data ? miner.data.objectId : null;
+  return miner && miner.data && miner.data.content
+    ? Miner.fromSuiParsedData(miner.data.content)
+    : null;
 }
 
 export async function getOrCreateMiner(
   wallet: Ed25519Keypair,
   client: SuiClient
-): Promise<string> {
+): Promise<Miner> {
   const pub = wallet.toSuiAddress();
   const proof = await getProof(client, pub);
 
@@ -292,14 +286,7 @@ export async function submitProof(
   proofData: ProofData,
   bus: Bus
 ): Promise<SuiTransactionBlockResponse> {
-  const txb = buildMineTx(
-    client,
-    BigInt(proofData.proof.nonce),
-    proofData.miner,
-    bus.id,
-    wallet.toSuiAddress(),
-    proofData.coinObject || undefined
-  );
+  const txb = buildMineTx(proofData, bus.id, wallet.toSuiAddress());
 
   const res = await launch(
     txb,
@@ -316,6 +303,11 @@ export async function submitProof(
   await waitUntilNextHash(client, proofData.miner, proofData.proof.currentHash);
 
   return res;
+}
+
+export interface MineProgress {
+  nonce: bigint;
+  hash: Uint8Array;
 }
 
 export interface MineConfig {
