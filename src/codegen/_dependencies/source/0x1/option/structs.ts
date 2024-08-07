@@ -1,34 +1,32 @@
 import * as reified from "../../../../_framework/reified";
 import {PhantomReified, Reified, StructClass, ToField, ToTypeArgument, ToTypeStr, TypeArgument, Vector, assertFieldsWithTypesArgsMatch, assertReifiedTypeArgsMatch, decodeFromFields, decodeFromFieldsWithTypes, decodeFromJSONField, extractType, fieldToJSON, phantom, toBcs} from "../../../../_framework/reified";
-import {FieldsWithTypes, composeSuiType, compressSuiType} from "../../../../_framework/util";
-import {BcsType, bcs, fromB64} from "@mysten/bcs";
-import {SuiClient, SuiParsedData} from "@mysten/sui.js/client";
+import {FieldsWithTypes, composeSuiType, compressSuiType, parseTypeName} from "../../../../_framework/util";
+import {PKG_V8} from "../index";
+import {BcsType, bcs} from "@mysten/sui/bcs";
+import {SuiClient, SuiParsedData} from "@mysten/sui/client";
+import {fromB64} from "@mysten/sui/utils";
 
 /* ============================== Option =============================== */
 
-export function isOption(type: string): boolean { type = compressSuiType(type); return type.startsWith("0x1::option::Option<"); }
+export function isOption(type: string): boolean { type = compressSuiType(type); return type.startsWith(`${PKG_V8}::option::Option` + '<'); }
 
 export interface OptionFields<Element extends TypeArgument> { vec: ToField<Vector<Element>> }
 
 export type OptionReified<Element extends TypeArgument> = Reified< Option<Element>, OptionFields<Element> >;
 
-export class Option<Element extends TypeArgument> implements StructClass { static readonly $typeName = "0x1::option::Option"; static readonly $numTypeParams = 1;
+export class Option<Element extends TypeArgument> implements StructClass { static readonly $typeName = `${PKG_V8}::option::Option`; static readonly $numTypeParams = 1; static readonly $isPhantom = [false,] as const;
 
  __inner: Element = null as unknown as Element; // for type checking in reified.ts
 
-; readonly $typeName = Option.$typeName;
-
- readonly $fullTypeName: `0x1::option::Option<${ToTypeStr<Element>}>`;
-
- readonly $typeArgs: [ToTypeStr<Element>];
+; readonly $typeName = Option.$typeName; readonly $fullTypeName: `${typeof PKG_V8}::option::Option<${ToTypeStr<Element>}>`; readonly $typeArgs: [ToTypeStr<Element>]; readonly $isPhantom = Option.$isPhantom;
 
  readonly vec: ToField<Vector<Element>>
 
- private constructor(typeArgs: [ToTypeStr<Element>], fields: OptionFields<Element>, ) { this.$fullTypeName = composeSuiType( Option.$typeName, ...typeArgs ) as `0x1::option::Option<${ToTypeStr<Element>}>`; this.$typeArgs = typeArgs;
+ private constructor(typeArgs: [ToTypeStr<Element>], fields: OptionFields<Element>, ) { this.$fullTypeName = composeSuiType( Option.$typeName, ...typeArgs ) as `${typeof PKG_V8}::option::Option<${ToTypeStr<Element>}>`; this.$typeArgs = typeArgs;
 
  this.vec = fields.vec; }
 
- static reified<Element extends Reified<TypeArgument, any>>( Element: Element ): OptionReified<ToTypeArgument<Element>> { return { typeName: Option.$typeName, fullTypeName: composeSuiType( Option.$typeName, ...[extractType(Element)] ) as `0x1::option::Option<${ToTypeStr<ToTypeArgument<Element>>}>`, typeArgs: [ extractType(Element) ] as [ToTypeStr<ToTypeArgument<Element>>], reifiedTypeArgs: [Element], fromFields: (fields: Record<string, any>) => Option.fromFields( Element, fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => Option.fromFieldsWithTypes( Element, item, ), fromBcs: (data: Uint8Array) => Option.fromBcs( Element, data, ), bcs: Option.bcs(toBcs(Element)), fromJSONField: (field: any) => Option.fromJSONField( Element, field, ), fromJSON: (json: Record<string, any>) => Option.fromJSON( Element, json, ), fromSuiParsedData: (content: SuiParsedData) => Option.fromSuiParsedData( Element, content, ), fetch: async (client: SuiClient, id: string) => Option.fetch( client, Element, id, ), new: ( fields: OptionFields<ToTypeArgument<Element>>, ) => { return new Option( [extractType(Element)], fields ) }, kind: "StructClassReified", } }
+ static reified<Element extends Reified<TypeArgument, any>>( Element: Element ): OptionReified<ToTypeArgument<Element>> { return { typeName: Option.$typeName, fullTypeName: composeSuiType( Option.$typeName, ...[extractType(Element)] ) as `${typeof PKG_V8}::option::Option<${ToTypeStr<ToTypeArgument<Element>>}>`, typeArgs: [ extractType(Element) ] as [ToTypeStr<ToTypeArgument<Element>>], isPhantom: Option.$isPhantom, reifiedTypeArgs: [Element], fromFields: (fields: Record<string, any>) => Option.fromFields( Element, fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => Option.fromFieldsWithTypes( Element, item, ), fromBcs: (data: Uint8Array) => Option.fromBcs( Element, data, ), bcs: Option.bcs(toBcs(Element)), fromJSONField: (field: any) => Option.fromJSONField( Element, field, ), fromJSON: (json: Record<string, any>) => Option.fromJSON( Element, json, ), fromSuiParsedData: (content: SuiParsedData) => Option.fromSuiParsedData( Element, content, ), fetch: async (client: SuiClient, id: string) => Option.fetch( client, Element, id, ), new: ( fields: OptionFields<ToTypeArgument<Element>>, ) => { return new Option( [extractType(Element)], fields ) }, kind: "StructClassReified", } }
 
  static get r() { return Option.reified }
 
@@ -69,6 +67,9 @@ export class Option<Element extends TypeArgument> implements StructClass { stati
  static fromSuiParsedData<Element extends Reified<TypeArgument, any>>( typeArg: Element, content: SuiParsedData ): Option<ToTypeArgument<Element>> { if (content.dataType !== "moveObject") { throw new Error("not an object"); } if (!isOption(content.type)) { throw new Error(`object at ${(content.fields as any).id} is not a Option object`); } return Option.fromFieldsWithTypes( typeArg, content ); }
 
  static async fetch<Element extends Reified<TypeArgument, any>>( client: SuiClient, typeArg: Element, id: string ): Promise<Option<ToTypeArgument<Element>>> { const res = await client.getObject({ id, options: { showBcs: true, }, }); if (res.error) { throw new Error(`error fetching Option object at id ${id}: ${res.error.code}`); } if (res.data?.bcs?.dataType !== "moveObject" || !isOption(res.data.bcs.type)) { throw new Error(`object at id ${id} is not a Option object`); }
+
+ const gotTypeArgs = parseTypeName(res.data.bcs.type).typeArgs; if (gotTypeArgs.length !== 1) { throw new Error(`type argument mismatch: expected 1 type argument but got '${gotTypeArgs.length}'`); }; const gotTypeArg = compressSuiType(gotTypeArgs[0]); const expectedTypeArg = compressSuiType(extractType(typeArg)); if (gotTypeArg !== compressSuiType(extractType(typeArg))) { throw new Error(`type argument mismatch: expected '${expectedTypeArg}' but got '${gotTypeArg}'`); };
+
  return Option.fromBcs( typeArg, fromB64(res.data.bcs.bcsBytes) ); }
 
  }

@@ -1,32 +1,30 @@
 import {PhantomReified, PhantomToTypeStr, PhantomTypeArgument, Reified, StructClass, ToField, ToPhantomTypeArgument, ToTypeStr, assertFieldsWithTypesArgsMatch, assertReifiedTypeArgsMatch, decodeFromFields, decodeFromFieldsWithTypes, decodeFromJSONField, extractType, phantom} from "../../../../_framework/reified";
-import {FieldsWithTypes, composeSuiType, compressSuiType} from "../../../../_framework/util";
+import {FieldsWithTypes, composeSuiType, compressSuiType, parseTypeName} from "../../../../_framework/util";
 import {Balance} from "../../0x2/balance/structs";
-import {bcs, fromB64} from "@mysten/bcs";
-import {SuiClient, SuiParsedData} from "@mysten/sui.js/client";
+import {PKG_V1} from "../index";
+import {bcs} from "@mysten/sui/bcs";
+import {SuiClient, SuiParsedData} from "@mysten/sui/client";
+import {fromB64} from "@mysten/sui/utils";
 
 /* ============================== TimeLockedBalance =============================== */
 
-export function isTimeLockedBalance(type: string): boolean { type = compressSuiType(type); return type.startsWith("0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::time_locked_balance::TimeLockedBalance<"); }
+export function isTimeLockedBalance(type: string): boolean { type = compressSuiType(type); return type.startsWith(`${PKG_V1}::time_locked_balance::TimeLockedBalance` + '<'); }
 
 export interface TimeLockedBalanceFields<T extends PhantomTypeArgument> { lockedBalance: ToField<Balance<T>>; unlockStartTsSec: ToField<"u64">; unlockPerSecond: ToField<"u64">; unlockedBalance: ToField<Balance<T>>; finalUnlockTsSec: ToField<"u64">; previousUnlockAt: ToField<"u64"> }
 
 export type TimeLockedBalanceReified<T extends PhantomTypeArgument> = Reified< TimeLockedBalance<T>, TimeLockedBalanceFields<T> >;
 
-export class TimeLockedBalance<T extends PhantomTypeArgument> implements StructClass { static readonly $typeName = "0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::time_locked_balance::TimeLockedBalance"; static readonly $numTypeParams = 1;
+export class TimeLockedBalance<T extends PhantomTypeArgument> implements StructClass { static readonly $typeName = `${PKG_V1}::time_locked_balance::TimeLockedBalance`; static readonly $numTypeParams = 1; static readonly $isPhantom = [true,] as const;
 
- readonly $typeName = TimeLockedBalance.$typeName;
-
- readonly $fullTypeName: `0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::time_locked_balance::TimeLockedBalance<${PhantomToTypeStr<T>}>`;
-
- readonly $typeArgs: [PhantomToTypeStr<T>];
+ readonly $typeName = TimeLockedBalance.$typeName; readonly $fullTypeName: `${typeof PKG_V1}::time_locked_balance::TimeLockedBalance<${PhantomToTypeStr<T>}>`; readonly $typeArgs: [PhantomToTypeStr<T>]; readonly $isPhantom = TimeLockedBalance.$isPhantom;
 
  readonly lockedBalance: ToField<Balance<T>>; readonly unlockStartTsSec: ToField<"u64">; readonly unlockPerSecond: ToField<"u64">; readonly unlockedBalance: ToField<Balance<T>>; readonly finalUnlockTsSec: ToField<"u64">; readonly previousUnlockAt: ToField<"u64">
 
- private constructor(typeArgs: [PhantomToTypeStr<T>], fields: TimeLockedBalanceFields<T>, ) { this.$fullTypeName = composeSuiType( TimeLockedBalance.$typeName, ...typeArgs ) as `0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::time_locked_balance::TimeLockedBalance<${PhantomToTypeStr<T>}>`; this.$typeArgs = typeArgs;
+ private constructor(typeArgs: [PhantomToTypeStr<T>], fields: TimeLockedBalanceFields<T>, ) { this.$fullTypeName = composeSuiType( TimeLockedBalance.$typeName, ...typeArgs ) as `${typeof PKG_V1}::time_locked_balance::TimeLockedBalance<${PhantomToTypeStr<T>}>`; this.$typeArgs = typeArgs;
 
  this.lockedBalance = fields.lockedBalance;; this.unlockStartTsSec = fields.unlockStartTsSec;; this.unlockPerSecond = fields.unlockPerSecond;; this.unlockedBalance = fields.unlockedBalance;; this.finalUnlockTsSec = fields.finalUnlockTsSec;; this.previousUnlockAt = fields.previousUnlockAt; }
 
- static reified<T extends PhantomReified<PhantomTypeArgument>>( T: T ): TimeLockedBalanceReified<ToPhantomTypeArgument<T>> { return { typeName: TimeLockedBalance.$typeName, fullTypeName: composeSuiType( TimeLockedBalance.$typeName, ...[extractType(T)] ) as `0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::time_locked_balance::TimeLockedBalance<${PhantomToTypeStr<ToPhantomTypeArgument<T>>}>`, typeArgs: [ extractType(T) ] as [PhantomToTypeStr<ToPhantomTypeArgument<T>>], reifiedTypeArgs: [T], fromFields: (fields: Record<string, any>) => TimeLockedBalance.fromFields( T, fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => TimeLockedBalance.fromFieldsWithTypes( T, item, ), fromBcs: (data: Uint8Array) => TimeLockedBalance.fromBcs( T, data, ), bcs: TimeLockedBalance.bcs, fromJSONField: (field: any) => TimeLockedBalance.fromJSONField( T, field, ), fromJSON: (json: Record<string, any>) => TimeLockedBalance.fromJSON( T, json, ), fromSuiParsedData: (content: SuiParsedData) => TimeLockedBalance.fromSuiParsedData( T, content, ), fetch: async (client: SuiClient, id: string) => TimeLockedBalance.fetch( client, T, id, ), new: ( fields: TimeLockedBalanceFields<ToPhantomTypeArgument<T>>, ) => { return new TimeLockedBalance( [extractType(T)], fields ) }, kind: "StructClassReified", } }
+ static reified<T extends PhantomReified<PhantomTypeArgument>>( T: T ): TimeLockedBalanceReified<ToPhantomTypeArgument<T>> { return { typeName: TimeLockedBalance.$typeName, fullTypeName: composeSuiType( TimeLockedBalance.$typeName, ...[extractType(T)] ) as `${typeof PKG_V1}::time_locked_balance::TimeLockedBalance<${PhantomToTypeStr<ToPhantomTypeArgument<T>>}>`, typeArgs: [ extractType(T) ] as [PhantomToTypeStr<ToPhantomTypeArgument<T>>], isPhantom: TimeLockedBalance.$isPhantom, reifiedTypeArgs: [T], fromFields: (fields: Record<string, any>) => TimeLockedBalance.fromFields( T, fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => TimeLockedBalance.fromFieldsWithTypes( T, item, ), fromBcs: (data: Uint8Array) => TimeLockedBalance.fromBcs( T, data, ), bcs: TimeLockedBalance.bcs, fromJSONField: (field: any) => TimeLockedBalance.fromJSONField( T, field, ), fromJSON: (json: Record<string, any>) => TimeLockedBalance.fromJSON( T, json, ), fromSuiParsedData: (content: SuiParsedData) => TimeLockedBalance.fromSuiParsedData( T, content, ), fetch: async (client: SuiClient, id: string) => TimeLockedBalance.fetch( client, T, id, ), new: ( fields: TimeLockedBalanceFields<ToPhantomTypeArgument<T>>, ) => { return new TimeLockedBalance( [extractType(T)], fields ) }, kind: "StructClassReified", } }
 
  static get r() { return TimeLockedBalance.reified }
 
@@ -65,6 +63,9 @@ export class TimeLockedBalance<T extends PhantomTypeArgument> implements StructC
  static fromSuiParsedData<T extends PhantomReified<PhantomTypeArgument>>( typeArg: T, content: SuiParsedData ): TimeLockedBalance<ToPhantomTypeArgument<T>> { if (content.dataType !== "moveObject") { throw new Error("not an object"); } if (!isTimeLockedBalance(content.type)) { throw new Error(`object at ${(content.fields as any).id} is not a TimeLockedBalance object`); } return TimeLockedBalance.fromFieldsWithTypes( typeArg, content ); }
 
  static async fetch<T extends PhantomReified<PhantomTypeArgument>>( client: SuiClient, typeArg: T, id: string ): Promise<TimeLockedBalance<ToPhantomTypeArgument<T>>> { const res = await client.getObject({ id, options: { showBcs: true, }, }); if (res.error) { throw new Error(`error fetching TimeLockedBalance object at id ${id}: ${res.error.code}`); } if (res.data?.bcs?.dataType !== "moveObject" || !isTimeLockedBalance(res.data.bcs.type)) { throw new Error(`object at id ${id} is not a TimeLockedBalance object`); }
+
+ const gotTypeArgs = parseTypeName(res.data.bcs.type).typeArgs; if (gotTypeArgs.length !== 1) { throw new Error(`type argument mismatch: expected 1 type argument but got '${gotTypeArgs.length}'`); }; const gotTypeArg = compressSuiType(gotTypeArgs[0]); const expectedTypeArg = compressSuiType(extractType(typeArg)); if (gotTypeArg !== compressSuiType(extractType(typeArg))) { throw new Error(`type argument mismatch: expected '${expectedTypeArg}' but got '${gotTypeArg}'`); };
+
  return TimeLockedBalance.fromBcs( typeArg, fromB64(res.data.bcs.bcsBytes) ); }
 
  }

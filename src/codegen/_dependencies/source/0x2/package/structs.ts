@@ -2,33 +2,31 @@ import * as reified from "../../../../_framework/reified";
 import {PhantomReified, Reified, StructClass, ToField, ToTypeStr, Vector, decodeFromFields, decodeFromFieldsWithTypes, decodeFromJSONField, fieldToJSON, phantom} from "../../../../_framework/reified";
 import {FieldsWithTypes, composeSuiType, compressSuiType} from "../../../../_framework/util";
 import {String} from "../../0x1/ascii/structs";
+import {PKG_V25} from "../index";
 import {ID, UID} from "../object/structs";
-import {bcs, fromB64} from "@mysten/bcs";
-import {SuiClient, SuiParsedData} from "@mysten/sui.js/client";
+import {bcs} from "@mysten/sui/bcs";
+import {SuiClient, SuiParsedData} from "@mysten/sui/client";
+import {fromB64} from "@mysten/sui/utils";
 
 /* ============================== Publisher =============================== */
 
-export function isPublisher(type: string): boolean { type = compressSuiType(type); return type === "0x2::package::Publisher"; }
+export function isPublisher(type: string): boolean { type = compressSuiType(type); return type === `${PKG_V25}::package::Publisher`; }
 
 export interface PublisherFields { id: ToField<UID>; package: ToField<String>; moduleName: ToField<String> }
 
 export type PublisherReified = Reified< Publisher, PublisherFields >;
 
-export class Publisher implements StructClass { static readonly $typeName = "0x2::package::Publisher"; static readonly $numTypeParams = 0;
+export class Publisher implements StructClass { static readonly $typeName = `${PKG_V25}::package::Publisher`; static readonly $numTypeParams = 0; static readonly $isPhantom = [] as const;
 
- readonly $typeName = Publisher.$typeName;
-
- readonly $fullTypeName: "0x2::package::Publisher";
-
- readonly $typeArgs: [];
+ readonly $typeName = Publisher.$typeName; readonly $fullTypeName: `${typeof PKG_V25}::package::Publisher`; readonly $typeArgs: []; readonly $isPhantom = Publisher.$isPhantom;
 
  readonly id: ToField<UID>; readonly package: ToField<String>; readonly moduleName: ToField<String>
 
- private constructor(typeArgs: [], fields: PublisherFields, ) { this.$fullTypeName = composeSuiType( Publisher.$typeName, ...typeArgs ) as "0x2::package::Publisher"; this.$typeArgs = typeArgs;
+ private constructor(typeArgs: [], fields: PublisherFields, ) { this.$fullTypeName = composeSuiType( Publisher.$typeName, ...typeArgs ) as `${typeof PKG_V25}::package::Publisher`; this.$typeArgs = typeArgs;
 
  this.id = fields.id;; this.package = fields.package;; this.moduleName = fields.moduleName; }
 
- static reified( ): PublisherReified { return { typeName: Publisher.$typeName, fullTypeName: composeSuiType( Publisher.$typeName, ...[] ) as "0x2::package::Publisher", typeArgs: [ ] as [], reifiedTypeArgs: [], fromFields: (fields: Record<string, any>) => Publisher.fromFields( fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => Publisher.fromFieldsWithTypes( item, ), fromBcs: (data: Uint8Array) => Publisher.fromBcs( data, ), bcs: Publisher.bcs, fromJSONField: (field: any) => Publisher.fromJSONField( field, ), fromJSON: (json: Record<string, any>) => Publisher.fromJSON( json, ), fromSuiParsedData: (content: SuiParsedData) => Publisher.fromSuiParsedData( content, ), fetch: async (client: SuiClient, id: string) => Publisher.fetch( client, id, ), new: ( fields: PublisherFields, ) => { return new Publisher( [], fields ) }, kind: "StructClassReified", } }
+ static reified( ): PublisherReified { return { typeName: Publisher.$typeName, fullTypeName: composeSuiType( Publisher.$typeName, ...[] ) as `${typeof PKG_V25}::package::Publisher`, typeArgs: [ ] as [], isPhantom: Publisher.$isPhantom, reifiedTypeArgs: [], fromFields: (fields: Record<string, any>) => Publisher.fromFields( fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => Publisher.fromFieldsWithTypes( item, ), fromBcs: (data: Uint8Array) => Publisher.fromBcs( data, ), bcs: Publisher.bcs, fromJSONField: (field: any) => Publisher.fromJSONField( field, ), fromJSON: (json: Record<string, any>) => Publisher.fromJSON( json, ), fromSuiParsedData: (content: SuiParsedData) => Publisher.fromSuiParsedData( content, ), fetch: async (client: SuiClient, id: string) => Publisher.fetch( client, id, ), new: ( fields: PublisherFields, ) => { return new Publisher( [], fields ) }, kind: "StructClassReified", } }
 
  static get r() { return Publisher.reified() }
 
@@ -67,33 +65,30 @@ export class Publisher implements StructClass { static readonly $typeName = "0x2
  static fromSuiParsedData( content: SuiParsedData ): Publisher { if (content.dataType !== "moveObject") { throw new Error("not an object"); } if (!isPublisher(content.type)) { throw new Error(`object at ${(content.fields as any).id} is not a Publisher object`); } return Publisher.fromFieldsWithTypes( content ); }
 
  static async fetch( client: SuiClient, id: string ): Promise<Publisher> { const res = await client.getObject({ id, options: { showBcs: true, }, }); if (res.error) { throw new Error(`error fetching Publisher object at id ${id}: ${res.error.code}`); } if (res.data?.bcs?.dataType !== "moveObject" || !isPublisher(res.data.bcs.type)) { throw new Error(`object at id ${id} is not a Publisher object`); }
+
  return Publisher.fromBcs( fromB64(res.data.bcs.bcsBytes) ); }
 
  }
 
 /* ============================== UpgradeCap =============================== */
 
-export function isUpgradeCap(type: string): boolean { type = compressSuiType(type); return type === "0x2::package::UpgradeCap"; }
+export function isUpgradeCap(type: string): boolean { type = compressSuiType(type); return type === `${PKG_V25}::package::UpgradeCap`; }
 
 export interface UpgradeCapFields { id: ToField<UID>; package: ToField<ID>; version: ToField<"u64">; policy: ToField<"u8"> }
 
 export type UpgradeCapReified = Reified< UpgradeCap, UpgradeCapFields >;
 
-export class UpgradeCap implements StructClass { static readonly $typeName = "0x2::package::UpgradeCap"; static readonly $numTypeParams = 0;
+export class UpgradeCap implements StructClass { static readonly $typeName = `${PKG_V25}::package::UpgradeCap`; static readonly $numTypeParams = 0; static readonly $isPhantom = [] as const;
 
- readonly $typeName = UpgradeCap.$typeName;
-
- readonly $fullTypeName: "0x2::package::UpgradeCap";
-
- readonly $typeArgs: [];
+ readonly $typeName = UpgradeCap.$typeName; readonly $fullTypeName: `${typeof PKG_V25}::package::UpgradeCap`; readonly $typeArgs: []; readonly $isPhantom = UpgradeCap.$isPhantom;
 
  readonly id: ToField<UID>; readonly package: ToField<ID>; readonly version: ToField<"u64">; readonly policy: ToField<"u8">
 
- private constructor(typeArgs: [], fields: UpgradeCapFields, ) { this.$fullTypeName = composeSuiType( UpgradeCap.$typeName, ...typeArgs ) as "0x2::package::UpgradeCap"; this.$typeArgs = typeArgs;
+ private constructor(typeArgs: [], fields: UpgradeCapFields, ) { this.$fullTypeName = composeSuiType( UpgradeCap.$typeName, ...typeArgs ) as `${typeof PKG_V25}::package::UpgradeCap`; this.$typeArgs = typeArgs;
 
  this.id = fields.id;; this.package = fields.package;; this.version = fields.version;; this.policy = fields.policy; }
 
- static reified( ): UpgradeCapReified { return { typeName: UpgradeCap.$typeName, fullTypeName: composeSuiType( UpgradeCap.$typeName, ...[] ) as "0x2::package::UpgradeCap", typeArgs: [ ] as [], reifiedTypeArgs: [], fromFields: (fields: Record<string, any>) => UpgradeCap.fromFields( fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => UpgradeCap.fromFieldsWithTypes( item, ), fromBcs: (data: Uint8Array) => UpgradeCap.fromBcs( data, ), bcs: UpgradeCap.bcs, fromJSONField: (field: any) => UpgradeCap.fromJSONField( field, ), fromJSON: (json: Record<string, any>) => UpgradeCap.fromJSON( json, ), fromSuiParsedData: (content: SuiParsedData) => UpgradeCap.fromSuiParsedData( content, ), fetch: async (client: SuiClient, id: string) => UpgradeCap.fetch( client, id, ), new: ( fields: UpgradeCapFields, ) => { return new UpgradeCap( [], fields ) }, kind: "StructClassReified", } }
+ static reified( ): UpgradeCapReified { return { typeName: UpgradeCap.$typeName, fullTypeName: composeSuiType( UpgradeCap.$typeName, ...[] ) as `${typeof PKG_V25}::package::UpgradeCap`, typeArgs: [ ] as [], isPhantom: UpgradeCap.$isPhantom, reifiedTypeArgs: [], fromFields: (fields: Record<string, any>) => UpgradeCap.fromFields( fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => UpgradeCap.fromFieldsWithTypes( item, ), fromBcs: (data: Uint8Array) => UpgradeCap.fromBcs( data, ), bcs: UpgradeCap.bcs, fromJSONField: (field: any) => UpgradeCap.fromJSONField( field, ), fromJSON: (json: Record<string, any>) => UpgradeCap.fromJSON( json, ), fromSuiParsedData: (content: SuiParsedData) => UpgradeCap.fromSuiParsedData( content, ), fetch: async (client: SuiClient, id: string) => UpgradeCap.fetch( client, id, ), new: ( fields: UpgradeCapFields, ) => { return new UpgradeCap( [], fields ) }, kind: "StructClassReified", } }
 
  static get r() { return UpgradeCap.reified() }
 
@@ -132,33 +127,30 @@ export class UpgradeCap implements StructClass { static readonly $typeName = "0x
  static fromSuiParsedData( content: SuiParsedData ): UpgradeCap { if (content.dataType !== "moveObject") { throw new Error("not an object"); } if (!isUpgradeCap(content.type)) { throw new Error(`object at ${(content.fields as any).id} is not a UpgradeCap object`); } return UpgradeCap.fromFieldsWithTypes( content ); }
 
  static async fetch( client: SuiClient, id: string ): Promise<UpgradeCap> { const res = await client.getObject({ id, options: { showBcs: true, }, }); if (res.error) { throw new Error(`error fetching UpgradeCap object at id ${id}: ${res.error.code}`); } if (res.data?.bcs?.dataType !== "moveObject" || !isUpgradeCap(res.data.bcs.type)) { throw new Error(`object at id ${id} is not a UpgradeCap object`); }
+
  return UpgradeCap.fromBcs( fromB64(res.data.bcs.bcsBytes) ); }
 
  }
 
 /* ============================== UpgradeReceipt =============================== */
 
-export function isUpgradeReceipt(type: string): boolean { type = compressSuiType(type); return type === "0x2::package::UpgradeReceipt"; }
+export function isUpgradeReceipt(type: string): boolean { type = compressSuiType(type); return type === `${PKG_V25}::package::UpgradeReceipt`; }
 
 export interface UpgradeReceiptFields { cap: ToField<ID>; package: ToField<ID> }
 
 export type UpgradeReceiptReified = Reified< UpgradeReceipt, UpgradeReceiptFields >;
 
-export class UpgradeReceipt implements StructClass { static readonly $typeName = "0x2::package::UpgradeReceipt"; static readonly $numTypeParams = 0;
+export class UpgradeReceipt implements StructClass { static readonly $typeName = `${PKG_V25}::package::UpgradeReceipt`; static readonly $numTypeParams = 0; static readonly $isPhantom = [] as const;
 
- readonly $typeName = UpgradeReceipt.$typeName;
-
- readonly $fullTypeName: "0x2::package::UpgradeReceipt";
-
- readonly $typeArgs: [];
+ readonly $typeName = UpgradeReceipt.$typeName; readonly $fullTypeName: `${typeof PKG_V25}::package::UpgradeReceipt`; readonly $typeArgs: []; readonly $isPhantom = UpgradeReceipt.$isPhantom;
 
  readonly cap: ToField<ID>; readonly package: ToField<ID>
 
- private constructor(typeArgs: [], fields: UpgradeReceiptFields, ) { this.$fullTypeName = composeSuiType( UpgradeReceipt.$typeName, ...typeArgs ) as "0x2::package::UpgradeReceipt"; this.$typeArgs = typeArgs;
+ private constructor(typeArgs: [], fields: UpgradeReceiptFields, ) { this.$fullTypeName = composeSuiType( UpgradeReceipt.$typeName, ...typeArgs ) as `${typeof PKG_V25}::package::UpgradeReceipt`; this.$typeArgs = typeArgs;
 
  this.cap = fields.cap;; this.package = fields.package; }
 
- static reified( ): UpgradeReceiptReified { return { typeName: UpgradeReceipt.$typeName, fullTypeName: composeSuiType( UpgradeReceipt.$typeName, ...[] ) as "0x2::package::UpgradeReceipt", typeArgs: [ ] as [], reifiedTypeArgs: [], fromFields: (fields: Record<string, any>) => UpgradeReceipt.fromFields( fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => UpgradeReceipt.fromFieldsWithTypes( item, ), fromBcs: (data: Uint8Array) => UpgradeReceipt.fromBcs( data, ), bcs: UpgradeReceipt.bcs, fromJSONField: (field: any) => UpgradeReceipt.fromJSONField( field, ), fromJSON: (json: Record<string, any>) => UpgradeReceipt.fromJSON( json, ), fromSuiParsedData: (content: SuiParsedData) => UpgradeReceipt.fromSuiParsedData( content, ), fetch: async (client: SuiClient, id: string) => UpgradeReceipt.fetch( client, id, ), new: ( fields: UpgradeReceiptFields, ) => { return new UpgradeReceipt( [], fields ) }, kind: "StructClassReified", } }
+ static reified( ): UpgradeReceiptReified { return { typeName: UpgradeReceipt.$typeName, fullTypeName: composeSuiType( UpgradeReceipt.$typeName, ...[] ) as `${typeof PKG_V25}::package::UpgradeReceipt`, typeArgs: [ ] as [], isPhantom: UpgradeReceipt.$isPhantom, reifiedTypeArgs: [], fromFields: (fields: Record<string, any>) => UpgradeReceipt.fromFields( fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => UpgradeReceipt.fromFieldsWithTypes( item, ), fromBcs: (data: Uint8Array) => UpgradeReceipt.fromBcs( data, ), bcs: UpgradeReceipt.bcs, fromJSONField: (field: any) => UpgradeReceipt.fromJSONField( field, ), fromJSON: (json: Record<string, any>) => UpgradeReceipt.fromJSON( json, ), fromSuiParsedData: (content: SuiParsedData) => UpgradeReceipt.fromSuiParsedData( content, ), fetch: async (client: SuiClient, id: string) => UpgradeReceipt.fetch( client, id, ), new: ( fields: UpgradeReceiptFields, ) => { return new UpgradeReceipt( [], fields ) }, kind: "StructClassReified", } }
 
  static get r() { return UpgradeReceipt.reified() }
 
@@ -197,33 +189,30 @@ export class UpgradeReceipt implements StructClass { static readonly $typeName =
  static fromSuiParsedData( content: SuiParsedData ): UpgradeReceipt { if (content.dataType !== "moveObject") { throw new Error("not an object"); } if (!isUpgradeReceipt(content.type)) { throw new Error(`object at ${(content.fields as any).id} is not a UpgradeReceipt object`); } return UpgradeReceipt.fromFieldsWithTypes( content ); }
 
  static async fetch( client: SuiClient, id: string ): Promise<UpgradeReceipt> { const res = await client.getObject({ id, options: { showBcs: true, }, }); if (res.error) { throw new Error(`error fetching UpgradeReceipt object at id ${id}: ${res.error.code}`); } if (res.data?.bcs?.dataType !== "moveObject" || !isUpgradeReceipt(res.data.bcs.type)) { throw new Error(`object at id ${id} is not a UpgradeReceipt object`); }
+
  return UpgradeReceipt.fromBcs( fromB64(res.data.bcs.bcsBytes) ); }
 
  }
 
 /* ============================== UpgradeTicket =============================== */
 
-export function isUpgradeTicket(type: string): boolean { type = compressSuiType(type); return type === "0x2::package::UpgradeTicket"; }
+export function isUpgradeTicket(type: string): boolean { type = compressSuiType(type); return type === `${PKG_V25}::package::UpgradeTicket`; }
 
 export interface UpgradeTicketFields { cap: ToField<ID>; package: ToField<ID>; policy: ToField<"u8">; digest: ToField<Vector<"u8">> }
 
 export type UpgradeTicketReified = Reified< UpgradeTicket, UpgradeTicketFields >;
 
-export class UpgradeTicket implements StructClass { static readonly $typeName = "0x2::package::UpgradeTicket"; static readonly $numTypeParams = 0;
+export class UpgradeTicket implements StructClass { static readonly $typeName = `${PKG_V25}::package::UpgradeTicket`; static readonly $numTypeParams = 0; static readonly $isPhantom = [] as const;
 
- readonly $typeName = UpgradeTicket.$typeName;
-
- readonly $fullTypeName: "0x2::package::UpgradeTicket";
-
- readonly $typeArgs: [];
+ readonly $typeName = UpgradeTicket.$typeName; readonly $fullTypeName: `${typeof PKG_V25}::package::UpgradeTicket`; readonly $typeArgs: []; readonly $isPhantom = UpgradeTicket.$isPhantom;
 
  readonly cap: ToField<ID>; readonly package: ToField<ID>; readonly policy: ToField<"u8">; readonly digest: ToField<Vector<"u8">>
 
- private constructor(typeArgs: [], fields: UpgradeTicketFields, ) { this.$fullTypeName = composeSuiType( UpgradeTicket.$typeName, ...typeArgs ) as "0x2::package::UpgradeTicket"; this.$typeArgs = typeArgs;
+ private constructor(typeArgs: [], fields: UpgradeTicketFields, ) { this.$fullTypeName = composeSuiType( UpgradeTicket.$typeName, ...typeArgs ) as `${typeof PKG_V25}::package::UpgradeTicket`; this.$typeArgs = typeArgs;
 
  this.cap = fields.cap;; this.package = fields.package;; this.policy = fields.policy;; this.digest = fields.digest; }
 
- static reified( ): UpgradeTicketReified { return { typeName: UpgradeTicket.$typeName, fullTypeName: composeSuiType( UpgradeTicket.$typeName, ...[] ) as "0x2::package::UpgradeTicket", typeArgs: [ ] as [], reifiedTypeArgs: [], fromFields: (fields: Record<string, any>) => UpgradeTicket.fromFields( fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => UpgradeTicket.fromFieldsWithTypes( item, ), fromBcs: (data: Uint8Array) => UpgradeTicket.fromBcs( data, ), bcs: UpgradeTicket.bcs, fromJSONField: (field: any) => UpgradeTicket.fromJSONField( field, ), fromJSON: (json: Record<string, any>) => UpgradeTicket.fromJSON( json, ), fromSuiParsedData: (content: SuiParsedData) => UpgradeTicket.fromSuiParsedData( content, ), fetch: async (client: SuiClient, id: string) => UpgradeTicket.fetch( client, id, ), new: ( fields: UpgradeTicketFields, ) => { return new UpgradeTicket( [], fields ) }, kind: "StructClassReified", } }
+ static reified( ): UpgradeTicketReified { return { typeName: UpgradeTicket.$typeName, fullTypeName: composeSuiType( UpgradeTicket.$typeName, ...[] ) as `${typeof PKG_V25}::package::UpgradeTicket`, typeArgs: [ ] as [], isPhantom: UpgradeTicket.$isPhantom, reifiedTypeArgs: [], fromFields: (fields: Record<string, any>) => UpgradeTicket.fromFields( fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => UpgradeTicket.fromFieldsWithTypes( item, ), fromBcs: (data: Uint8Array) => UpgradeTicket.fromBcs( data, ), bcs: UpgradeTicket.bcs, fromJSONField: (field: any) => UpgradeTicket.fromJSONField( field, ), fromJSON: (json: Record<string, any>) => UpgradeTicket.fromJSON( json, ), fromSuiParsedData: (content: SuiParsedData) => UpgradeTicket.fromSuiParsedData( content, ), fetch: async (client: SuiClient, id: string) => UpgradeTicket.fetch( client, id, ), new: ( fields: UpgradeTicketFields, ) => { return new UpgradeTicket( [], fields ) }, kind: "StructClassReified", } }
 
  static get r() { return UpgradeTicket.reified() }
 
@@ -262,6 +251,7 @@ export class UpgradeTicket implements StructClass { static readonly $typeName = 
  static fromSuiParsedData( content: SuiParsedData ): UpgradeTicket { if (content.dataType !== "moveObject") { throw new Error("not an object"); } if (!isUpgradeTicket(content.type)) { throw new Error(`object at ${(content.fields as any).id} is not a UpgradeTicket object`); } return UpgradeTicket.fromFieldsWithTypes( content ); }
 
  static async fetch( client: SuiClient, id: string ): Promise<UpgradeTicket> { const res = await client.getObject({ id, options: { showBcs: true, }, }); if (res.error) { throw new Error(`error fetching UpgradeTicket object at id ${id}: ${res.error.code}`); } if (res.data?.bcs?.dataType !== "moveObject" || !isUpgradeTicket(res.data.bcs.type)) { throw new Error(`object at id ${id} is not a UpgradeTicket object`); }
+
  return UpgradeTicket.fromBcs( fromB64(res.data.bcs.bcsBytes) ); }
 
  }

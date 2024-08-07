@@ -1,41 +1,42 @@
 import {PUBLISHED_AT} from "..";
-import {ObjectArg, obj, pure, vector} from "../../_framework/util";
-import {TransactionArgument, TransactionBlock} from "@mysten/sui.js/transactions";
+import {obj, pure, vector} from "../../_framework/util";
+import {Bus} from "./structs";
+import {Transaction, TransactionArgument, TransactionObjectInput} from "@mysten/sui/transactions";
 
-export function treasury( txb: TransactionBlock, config: ObjectArg ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::treasury`, arguments: [ obj(txb, config) ], }) }
+export function treasury( tx: Transaction, config: TransactionObjectInput ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::treasury`, arguments: [ obj(tx, config) ], }) }
 
-export function totalHashes( txb: TransactionBlock, config: ObjectArg ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::total_hashes`, arguments: [ obj(txb, config) ], }) }
+export function totalHashes( tx: Transaction, config: TransactionObjectInput ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::total_hashes`, arguments: [ obj(tx, config) ], }) }
 
-export function totalRewards( txb: TransactionBlock, config: ObjectArg ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::total_rewards`, arguments: [ obj(txb, config) ], }) }
+export function totalRewards( tx: Transaction, config: TransactionObjectInput ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::total_rewards`, arguments: [ obj(tx, config) ], }) }
 
-export interface MineArgs { nonce: bigint | TransactionArgument; bus: ObjectArg; miner: ObjectArg; clock: ObjectArg }
+export interface MineArgs { nonce: bigint | TransactionArgument; bus: TransactionObjectInput; miner: TransactionObjectInput; clock: TransactionObjectInput }
 
-export function mine( txb: TransactionBlock, args: MineArgs ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::mine`, arguments: [ pure(txb, args.nonce, `u64`), obj(txb, args.bus), obj(txb, args.miner), obj(txb, args.clock) ], }) }
+export function mine( tx: Transaction, args: MineArgs ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::mine`, arguments: [ pure(tx, args.nonce, `u64`), obj(tx, args.bus), obj(tx, args.miner), obj(tx, args.clock) ], }) }
 
-export function calculateDifficulty( txb: TransactionBlock, totalHashes: bigint | TransactionArgument ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::calculate_difficulty`, arguments: [ pure(txb, totalHashes, `u64`) ], }) }
+export function calculateDifficulty( tx: Transaction, totalHashes: bigint | TransactionArgument ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::calculate_difficulty`, arguments: [ pure(tx, totalHashes, `u64`) ], }) }
 
 export interface CalculateNewRewardRateArgs { currentRate: bigint | TransactionArgument; epochRewards: bigint | TransactionArgument; maxReward: bigint | TransactionArgument }
 
-export function calculateNewRewardRate( txb: TransactionBlock, args: CalculateNewRewardRateArgs ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::calculate_new_reward_rate`, arguments: [ pure(txb, args.currentRate, `u64`), pure(txb, args.epochRewards, `u64`), pure(txb, args.maxReward, `u64`) ], }) }
+export function calculateNewRewardRate( tx: Transaction, args: CalculateNewRewardRateArgs ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::calculate_new_reward_rate`, arguments: [ pure(tx, args.currentRate, `u64`), pure(tx, args.epochRewards, `u64`), pure(tx, args.maxReward, `u64`) ], }) }
 
-export function difficulty( txb: TransactionBlock, bus: ObjectArg ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::difficulty`, arguments: [ obj(txb, bus) ], }) }
+export function difficulty( tx: Transaction, bus: TransactionObjectInput ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::difficulty`, arguments: [ obj(tx, bus) ], }) }
 
-export interface EpochResetArgs { config: ObjectArg; buses: Array<ObjectArg> | TransactionArgument; clock: ObjectArg }
+export interface EpochResetArgs { config: TransactionObjectInput; buses: Array<TransactionObjectInput> | TransactionArgument; clock: TransactionObjectInput }
 
-export function epochReset( txb: TransactionBlock, args: EpochResetArgs ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::epoch_reset`, arguments: [ obj(txb, args.config), vector(txb, `0x9cde6fd22c9518820644dd1350ac1595bb23751033d247465ff3c7572d9a7049::mine::Bus`, args.buses), obj(txb, args.clock) ], }) }
+export function epochReset( tx: Transaction, args: EpochResetArgs ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::epoch_reset`, arguments: [ obj(tx, args.config), vector(tx, `${Bus.$typeName}`, args.buses), obj(tx, args.clock) ], }) }
 
 export interface GenerateProofArgs { currentHash: Array<number | TransactionArgument> | TransactionArgument; sender: string | TransactionArgument; nonce: bigint | TransactionArgument }
 
-export function generateProof( txb: TransactionBlock, args: GenerateProofArgs ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::generate_proof`, arguments: [ pure(txb, args.currentHash, `vector<u8>`), pure(txb, args.sender, `address`), pure(txb, args.nonce, `u64`) ], }) }
+export function generateProof( tx: Transaction, args: GenerateProofArgs ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::generate_proof`, arguments: [ pure(tx, args.currentHash, `vector<u8>`), pure(tx, args.sender, `address`), pure(tx, args.nonce, `u64`) ], }) }
 
-export function init( txb: TransactionBlock, witness: ObjectArg ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::init`, arguments: [ obj(txb, witness) ], }) }
+export function init( tx: Transaction, witness: TransactionObjectInput ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::init`, arguments: [ obj(tx, witness) ], }) }
 
-export function live( txb: TransactionBlock, bus: ObjectArg ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::live`, arguments: [ obj(txb, bus) ], }) }
+export function live( tx: Transaction, bus: TransactionObjectInput ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::live`, arguments: [ obj(tx, bus) ], }) }
 
-export function rewardRate( txb: TransactionBlock, bus: ObjectArg ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::reward_rate`, arguments: [ obj(txb, bus) ], }) }
+export function rewardRate( tx: Transaction, bus: TransactionObjectInput ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::reward_rate`, arguments: [ obj(tx, bus) ], }) }
 
-export function rewards( txb: TransactionBlock, bus: ObjectArg ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::rewards`, arguments: [ obj(txb, bus) ], }) }
+export function rewards( tx: Transaction, bus: TransactionObjectInput ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::rewards`, arguments: [ obj(tx, bus) ], }) }
 
 export interface ValidateProofArgs { proof: Array<number | TransactionArgument> | TransactionArgument; difficulty: number | TransactionArgument }
 
-export function validateProof( txb: TransactionBlock, args: ValidateProofArgs ) { return txb.moveCall({ target: `${PUBLISHED_AT}::mine::validate_proof`, arguments: [ pure(txb, args.proof, `vector<u8>`), pure(txb, args.difficulty, `u8`) ], }) }
+export function validateProof( tx: Transaction, args: ValidateProofArgs ) { return tx.moveCall({ target: `${PUBLISHED_AT}::mine::validate_proof`, arguments: [ pure(tx, args.proof, `vector<u8>`), pure(tx, args.difficulty, `u8`) ], }) }

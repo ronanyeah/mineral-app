@@ -1,32 +1,30 @@
 import {PhantomReified, PhantomToTypeStr, PhantomTypeArgument, Reified, StructClass, ToField, ToPhantomTypeArgument, ToTypeStr, assertFieldsWithTypesArgsMatch, assertReifiedTypeArgsMatch, decodeFromFields, decodeFromFieldsWithTypes, decodeFromJSONField, extractType, phantom} from "../../../../_framework/reified";
-import {FieldsWithTypes, composeSuiType, compressSuiType} from "../../../../_framework/util";
+import {FieldsWithTypes, composeSuiType, compressSuiType, parseTypeName} from "../../../../_framework/util";
+import {PKG_V1} from "../index";
 import {TimeLockedBalance} from "../time-locked-balance/structs";
-import {bcs, fromB64} from "@mysten/bcs";
-import {SuiClient, SuiParsedData} from "@mysten/sui.js/client";
+import {bcs} from "@mysten/sui/bcs";
+import {SuiClient, SuiParsedData} from "@mysten/sui/client";
+import {fromB64} from "@mysten/sui/utils";
 
 /* ============================== Locker =============================== */
 
-export function isLocker(type: string): boolean { type = compressSuiType(type); return type.startsWith("0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::locker::Locker<"); }
+export function isLocker(type: string): boolean { type = compressSuiType(type); return type.startsWith(`${PKG_V1}::locker::Locker` + '<'); }
 
 export interface LockerFields<T extends PhantomTypeArgument> { balance: ToField<TimeLockedBalance<T>> }
 
 export type LockerReified<T extends PhantomTypeArgument> = Reified< Locker<T>, LockerFields<T> >;
 
-export class Locker<T extends PhantomTypeArgument> implements StructClass { static readonly $typeName = "0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::locker::Locker"; static readonly $numTypeParams = 1;
+export class Locker<T extends PhantomTypeArgument> implements StructClass { static readonly $typeName = `${PKG_V1}::locker::Locker`; static readonly $numTypeParams = 1; static readonly $isPhantom = [true,] as const;
 
- readonly $typeName = Locker.$typeName;
-
- readonly $fullTypeName: `0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::locker::Locker<${PhantomToTypeStr<T>}>`;
-
- readonly $typeArgs: [PhantomToTypeStr<T>];
+ readonly $typeName = Locker.$typeName; readonly $fullTypeName: `${typeof PKG_V1}::locker::Locker<${PhantomToTypeStr<T>}>`; readonly $typeArgs: [PhantomToTypeStr<T>]; readonly $isPhantom = Locker.$isPhantom;
 
  readonly balance: ToField<TimeLockedBalance<T>>
 
- private constructor(typeArgs: [PhantomToTypeStr<T>], fields: LockerFields<T>, ) { this.$fullTypeName = composeSuiType( Locker.$typeName, ...typeArgs ) as `0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::locker::Locker<${PhantomToTypeStr<T>}>`; this.$typeArgs = typeArgs;
+ private constructor(typeArgs: [PhantomToTypeStr<T>], fields: LockerFields<T>, ) { this.$fullTypeName = composeSuiType( Locker.$typeName, ...typeArgs ) as `${typeof PKG_V1}::locker::Locker<${PhantomToTypeStr<T>}>`; this.$typeArgs = typeArgs;
 
  this.balance = fields.balance; }
 
- static reified<T extends PhantomReified<PhantomTypeArgument>>( T: T ): LockerReified<ToPhantomTypeArgument<T>> { return { typeName: Locker.$typeName, fullTypeName: composeSuiType( Locker.$typeName, ...[extractType(T)] ) as `0xbafd431cc9362367d02dc2752216782a265216af069d70a7679de5f38c0d62ca::locker::Locker<${PhantomToTypeStr<ToPhantomTypeArgument<T>>}>`, typeArgs: [ extractType(T) ] as [PhantomToTypeStr<ToPhantomTypeArgument<T>>], reifiedTypeArgs: [T], fromFields: (fields: Record<string, any>) => Locker.fromFields( T, fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => Locker.fromFieldsWithTypes( T, item, ), fromBcs: (data: Uint8Array) => Locker.fromBcs( T, data, ), bcs: Locker.bcs, fromJSONField: (field: any) => Locker.fromJSONField( T, field, ), fromJSON: (json: Record<string, any>) => Locker.fromJSON( T, json, ), fromSuiParsedData: (content: SuiParsedData) => Locker.fromSuiParsedData( T, content, ), fetch: async (client: SuiClient, id: string) => Locker.fetch( client, T, id, ), new: ( fields: LockerFields<ToPhantomTypeArgument<T>>, ) => { return new Locker( [extractType(T)], fields ) }, kind: "StructClassReified", } }
+ static reified<T extends PhantomReified<PhantomTypeArgument>>( T: T ): LockerReified<ToPhantomTypeArgument<T>> { return { typeName: Locker.$typeName, fullTypeName: composeSuiType( Locker.$typeName, ...[extractType(T)] ) as `${typeof PKG_V1}::locker::Locker<${PhantomToTypeStr<ToPhantomTypeArgument<T>>}>`, typeArgs: [ extractType(T) ] as [PhantomToTypeStr<ToPhantomTypeArgument<T>>], isPhantom: Locker.$isPhantom, reifiedTypeArgs: [T], fromFields: (fields: Record<string, any>) => Locker.fromFields( T, fields, ), fromFieldsWithTypes: (item: FieldsWithTypes) => Locker.fromFieldsWithTypes( T, item, ), fromBcs: (data: Uint8Array) => Locker.fromBcs( T, data, ), bcs: Locker.bcs, fromJSONField: (field: any) => Locker.fromJSONField( T, field, ), fromJSON: (json: Record<string, any>) => Locker.fromJSON( T, json, ), fromSuiParsedData: (content: SuiParsedData) => Locker.fromSuiParsedData( T, content, ), fetch: async (client: SuiClient, id: string) => Locker.fetch( client, T, id, ), new: ( fields: LockerFields<ToPhantomTypeArgument<T>>, ) => { return new Locker( [extractType(T)], fields ) }, kind: "StructClassReified", } }
 
  static get r() { return Locker.reified }
 
@@ -65,6 +63,9 @@ export class Locker<T extends PhantomTypeArgument> implements StructClass { stat
  static fromSuiParsedData<T extends PhantomReified<PhantomTypeArgument>>( typeArg: T, content: SuiParsedData ): Locker<ToPhantomTypeArgument<T>> { if (content.dataType !== "moveObject") { throw new Error("not an object"); } if (!isLocker(content.type)) { throw new Error(`object at ${(content.fields as any).id} is not a Locker object`); } return Locker.fromFieldsWithTypes( typeArg, content ); }
 
  static async fetch<T extends PhantomReified<PhantomTypeArgument>>( client: SuiClient, typeArg: T, id: string ): Promise<Locker<ToPhantomTypeArgument<T>>> { const res = await client.getObject({ id, options: { showBcs: true, }, }); if (res.error) { throw new Error(`error fetching Locker object at id ${id}: ${res.error.code}`); } if (res.data?.bcs?.dataType !== "moveObject" || !isLocker(res.data.bcs.type)) { throw new Error(`object at id ${id} is not a Locker object`); }
+
+ const gotTypeArgs = parseTypeName(res.data.bcs.type).typeArgs; if (gotTypeArgs.length !== 1) { throw new Error(`type argument mismatch: expected 1 type argument but got '${gotTypeArgs.length}'`); }; const gotTypeArg = compressSuiType(gotTypeArgs[0]); const expectedTypeArg = compressSuiType(extractType(typeArg)); if (gotTypeArg !== compressSuiType(extractType(typeArg))) { throw new Error(`type argument mismatch: expected '${expectedTypeArg}' but got '${gotTypeArg}'`); };
+
  return Locker.fromBcs( typeArg, fromB64(res.data.bcs.bcsBytes) ); }
 
  }

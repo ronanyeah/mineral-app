@@ -10,7 +10,7 @@ export function registerClasses(loader: StructClassLoader) { loader.register(fix
 loader.register(option.Option);
 loader.register(ascii.Char);
 loader.register(ascii.String);
+loader.register(bitVector.BitVector);
 loader.register(string.String);
 loader.register(typeName.TypeName);
-loader.register(bitVector.BitVector);
  }

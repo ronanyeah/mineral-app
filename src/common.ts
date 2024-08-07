@@ -1,23 +1,25 @@
 /* eslint-disable fp/no-loops, fp/no-mutation, fp/no-mutating-methods, fp/no-let, no-constant-condition */
 
 import { keccak_256 } from "@noble/hashes/sha3";
-import { mine } from "./codegen/mineral/mine/functions";
-import { register } from "./codegen/mineral/miner/functions";
-import { SUI_CLOCK_OBJECT_ID, MIST_PER_SUI } from "@mysten/sui.js/utils";
-import { ProofData } from "./ports";
-import * as constants from "./constants";
+import { SignatureWithBytes } from "@mysten/sui/cryptography";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { SUI_CLOCK_OBJECT_ID, MIST_PER_SUI } from "@mysten/sui/utils";
+import { Transaction } from "@mysten/sui/transactions";
 import {
   TransactionEffects,
   ExecutionStatus,
   SuiClient,
   SuiTransactionBlockResponse,
-} from "@mysten/sui.js/client";
-import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { Ed25519Keypair } from "@mysten/sui.js/dist/cjs/keypairs/ed25519";
+} from "@mysten/sui/client";
+import { TurbosSdk } from "turbos-clmm-sdk";
+
+import { ProofData } from "./ports";
+import * as constants from "./constants";
+
+import { mine } from "./codegen/mineral/mine/functions";
+import { register } from "./codegen/mineral/miner/functions";
 import { Bus } from "./codegen/mineral/mine/structs";
 import { Miner } from "./codegen/mineral/miner/structs";
-import { SignatureWithBytes } from "@mysten/sui.js/dist/cjs/cryptography";
-import { TurbosSdk } from "turbos-clmm-sdk";
 
 export const getClient = () => {
   return new SuiClient({
@@ -92,7 +94,7 @@ export async function fetchBuses(client: SuiClient): Promise<Bus[]> {
 }
 
 export async function estimateGasAndSubmit(
-  txb: TransactionBlock,
+  txb: Transaction,
   client: SuiClient,
   wallet: Ed25519Keypair
 ): Promise<SuiTransactionBlockResponse> {
@@ -127,7 +129,7 @@ export async function estimateGasAndSubmit(
 }
 
 export function signTx(
-  txb: TransactionBlock,
+  txb: Transaction,
   client: SuiClient,
   wallet: Ed25519Keypair,
   gas: number | null
@@ -162,7 +164,7 @@ export function handleMineralError(effects: TransactionEffects) {
 }
 
 export async function launch(
-  txb: TransactionBlock,
+  txb: Transaction,
   client: SuiClient,
   wallet: Ed25519Keypair,
   gas: number
@@ -182,8 +184,8 @@ export function buildMineTx(
   proofData: ProofData,
   busId: string,
   payer: string
-): TransactionBlock {
-  const txb = new TransactionBlock();
+): Transaction {
+  const txb = new Transaction();
   const [createdObj] = mine(txb, {
     nonce: BigInt(proofData.proof.nonce),
     bus: txb.sharedObjectRef({
@@ -256,7 +258,7 @@ export async function getOrCreateMiner(
     return proof;
   }
 
-  const txb = new TransactionBlock();
+  const txb = new Transaction();
   register(txb);
 
   const _res = await estimateGasAndSubmit(txb, client, wallet);

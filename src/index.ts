@@ -15,13 +15,13 @@ import {
 } from "./common";
 import { CONFIG } from "./constants";
 import { Network, TurbosSdk } from "turbos-clmm-sdk";
-import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
-import { bcs } from "@mysten/sui.js/bcs";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { bcs } from "@mysten/sui/bcs";
 import { Stats, ElmApp, Balances } from "./ports";
-import { decodeSuiPrivateKey } from "@mysten/sui.js/cryptography";
-import { SuiClient } from "@mysten/sui.js/client";
-import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { SUI_TYPE_ARG } from "@mysten/sui.js/utils";
+import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
+import { SuiClient } from "@mysten/sui/client";
+import { Transaction } from "@mysten/sui/transactions";
+import { SUI_TYPE_ARG } from "@mysten/sui/utils";
 import { MINE, Config } from "./codegen/mineral/mine/structs";
 import { Miner } from "./codegen/mineral/miner/structs";
 
@@ -127,7 +127,7 @@ let worker: Worker | null = null;
       if (wallet) {
         const coins = await fetchMineral(provider, wallet.toSuiAddress());
 
-        const txb = new TransactionBlock();
+        const txb = new Transaction();
         txb.mergeCoins(
           coins[0].coinObjectId,
           coins.slice(1).map((coin) => coin.coinObjectId)

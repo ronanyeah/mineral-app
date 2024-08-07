@@ -10,20 +10,20 @@ import { epochReset } from "../codegen/mineral/mine/functions";
 import { Config, MINE } from "../codegen/mineral/mine/structs";
 import { Miner } from "../codegen/mineral/miner/structs";
 
-import { bcs } from "@mysten/sui.js/bcs";
-import { decodeSuiPrivateKey } from "@mysten/sui.js/cryptography";
+import { bcs } from "@mysten/sui/bcs";
+import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
 import {
   SuiTransactionBlockResponse,
   SuiClient,
   getFullnodeUrl,
-} from "@mysten/sui.js/client";
-import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
+} from "@mysten/sui/client";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import {
   SUI_TYPE_ARG,
   SUI_DECIMALS,
   SUI_CLOCK_OBJECT_ID,
-} from "@mysten/sui.js/utils";
-import { TransactionBlock } from "@mysten/sui.js/transactions";
+} from "@mysten/sui/utils";
+import { Transaction } from "@mysten/sui/transactions";
 
 import {
   MineProgress,
@@ -376,7 +376,7 @@ async function execReset(
   client: SuiClient,
   wallet: Ed25519Keypair
 ): Promise<SuiTransactionBlockResponse> {
-  const txb = new TransactionBlock();
+  const txb = new Transaction();
   epochReset(txb, {
     config: constants.CONFIG,
     buses: constants.BUSES.map((x) =>
