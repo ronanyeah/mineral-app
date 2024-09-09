@@ -31,6 +31,8 @@ view model =
         |> row [ spacing 10, centerX ]
         |> when False
     , viewBody model
+    , footerLinks
+        |> el [ alignBottom, centerX ]
     ]
         |> column
             [ cappedWidth 450
@@ -860,3 +862,14 @@ formatMINE n d =
 
 turbosLink =
     "https://app.turbos.finance/#/trade?input=0x2::sui::SUI&output=0x9cde6fd22c9518820644dd1350ac1595bb23751033d247465ff3c7572d9a7049::mine::MINE"
+
+
+footerLinks =
+    [ img [ height <| px 30 ] "/icons/github.png"
+        |> linkOut "https://github.com/ronanyeah/mineral" []
+    , img [ height <| px 30 ] "/icons/discord.png"
+        |> linkOut "https://discord.com/invite/CYTsaBgEJ2" []
+    , img [ height <| px 30 ] "/icons/twitter.png"
+        |> linkOut "https://x.com/mineralSupply" []
+    ]
+        |> row [ spacing 40 ]
