@@ -3,6 +3,8 @@ const webpack = require("webpack");
 
 const publicFolder = resolve("./public");
 
+const { BACKEND } = process.env;
+
 module.exports = (env) => {
   const devMode = Boolean(env.WEBPACK_SERVE);
 
@@ -60,6 +62,11 @@ module.exports = (env) => {
     resolve: {
       extensions: [".ts", ".js"],
     },
-    plugins: [new webpack.NoEmitOnErrorsPlugin()],
+    plugins: [
+      new webpack.NoEmitOnErrorsPlugin(),
+      new webpack.DefinePlugin({
+        BACKEND: JSON.stringify(BACKEND),
+      }),
+    ],
   };
 };

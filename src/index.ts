@@ -1,8 +1,17 @@
-/* eslint-disable fp/no-loops, fp/no-mutation, fp/no-mutating-methods, fp/no-let, no-constant-condition */
+import "./index.css";
 
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { bcs } from "@mysten/sui/bcs";
+import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
+import { SuiClient } from "@mysten/sui/client";
+import { Transaction } from "@mysten/sui/transactions";
+import { SUI_TYPE_ARG } from "@mysten/sui/utils";
+import { MINE } from "./codegen/mineral/mine/structs";
+import { Miner } from "./codegen/mineral/miner/structs";
+
+import { ElmApp, Balances, Flags } from "./ports";
 import {
   estimateGasAndSubmit,
-  calcSwapVsMine,
   submitProof,
   MineConfig,
   getProof,
@@ -13,34 +22,42 @@ import {
   waitUntilNextEpoch,
   MineProgress,
 } from "./common";
-import { CONFIG } from "./constants";
-import { Network, TurbosSdk } from "turbos-clmm-sdk";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { bcs } from "@mysten/sui/bcs";
-import { Stats, ElmApp, Balances } from "./ports";
-import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
-import { SuiClient } from "@mysten/sui/client";
-import { Transaction } from "@mysten/sui/transactions";
-import { SUI_TYPE_ARG } from "@mysten/sui/utils";
-import { MINE, Config } from "./codegen/mineral/mine/structs";
-import { Miner } from "./codegen/mineral/miner/structs";
+const sweep: any = {};
+// todo
+//import * as sweep from "./sweep";
+//import * as walletSelect from "./walletSelect";
+//import { WebSocketClient } from "./lib";
 
 const { Elm } = require("./Main.elm");
 
 const WALLET_KEY = "WALLET";
 const MINE_KEY = "MINOOOR";
+const SPECTATOR_KEY = "SPECTATOOOR";
+
+// @ts-expect-error
+const backend: string = BACKEND;
+
+// todo
+const walletHooks: any = {};
+//const walletHooks: walletSelect.WalletHooks = {
+//currentWallet: null,
+//signMsg: null,
+//setModalOpen: null,
+//disconnectWallet: null,
+//signTx: null,
+//};
 
 const RPCS = [
-  //"https://sui-mainnet-rpc.allthatnode.com",
-  //"https://sui-mainnet-endpoint.blockvision.org",
   "https://fullnode.mainnet.sui.io:443",
   "https://mainnet.suiet.app",
-  "https://sui-mainnet-us-1.cosmostation.io",
-  "https://sui-mainnet.public.blastapi.io",
-  "https://sui-mainnet-eu-3.cosmostation.io",
-  "https://sui1mainnet-rpc.chainode.tech",
+  "https://rpc-mainnet.suiscan.xyz",
   "https://mainnet.sui.rpcpool.com",
+  "https://sui-mainnet.nodeinfra.com",
+  "https://mainnet-rpc.sui.chainbase.online",
+  "https://sui-mainnet-ca-1.cosmostation.io",
   "https://sui-mainnet-ca-2.cosmostation.io",
+  "https://sui-mainnet-us-1.cosmostation.io",
+  "https://sui-mainnet-us-2.cosmostation.io",
 ];
 
 const RPC = RPCS[Math.floor(Math.random() * RPCS.length)];
@@ -49,43 +66,35 @@ const provider = new SuiClient({
   url: RPC,
 });
 
-const turbos = new TurbosSdk(Network.mainnet);
-
 let worker: Worker | null = null;
 
 (async () => {
   let wallet = recoverWallet();
+  //const spectatorId = recoverSpectatorId();
+  const spectatorId = "123";
+
+  const flags: Flags = {
+    backend,
+    rpc: [RPC, RPCS],
+    time: Date.now(),
+    screen: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+    spectatorId,
+    wallet: wallet
+      ? { pub: wallet.toSuiAddress(), pvt: wallet.getSecretKey() }
+      : null,
+  };
   const app: ElmApp = Elm.Main.init({
     node: document.getElementById("app"),
-    flags: {
-      rpc: [RPC, RPCS],
-      time: Date.now(),
-      wallet: wallet
-        ? { pub: wallet.toSuiAddress(), pvt: wallet.getSecretKey() }
-        : null,
-    },
+    flags,
   });
 
   ////  ports registration start
 
-  app.ports.fetchStats.subscribe(() =>
-    (async () => {
-      const [bus, config] = await Promise.all([
-        fetchBus(provider),
-        Config.fetch(provider, CONFIG),
-      ]);
-      const stats: Stats = {
-        totalHashes: Number(config.totalHashes),
-        totalRewards: Number(config.totalRewards),
-        rewardRate: Number(bus.rewardRate),
-      };
-      app.ports.statsCb.send(stats);
-      const rtns = await calcSwapVsMine(turbos, bus.rewardRate);
-      app.ports.swapDataCb.send(rtns);
-    })().catch((e) => {
-      console.error(e);
-    })
-  );
+  //const ws = new WebSocketClient(app, "ws://localhost:8888/api/ws");
+  const ws: any = {};
 
   app.ports.clearWallet.subscribe(() => {
     wallet = null;
@@ -103,7 +112,6 @@ let worker: Worker | null = null;
 
       return app.ports.minerCreatedCb.send({
         address: miner.id,
-        claims: 0,
       });
     })().catch((e) => {
       console.error(e);
@@ -161,7 +169,6 @@ let worker: Worker | null = null;
         miningAccount: miner
           ? {
               address: miner.id,
-              claims: 0,
             }
           : null,
       });
@@ -181,19 +188,6 @@ let worker: Worker | null = null;
   app.ports.copy.subscribe((val) => {
     navigator.clipboard.writeText(val);
   });
-
-  if (wallet) {
-    updateBalances(app, provider, wallet.toSuiAddress()).catch(console.error);
-  }
-
-  app.ports.claim.subscribe((_) =>
-    (async () => {
-      //
-    })().catch((e) => {
-      console.error(e);
-      app.ports.claimCb.send({ err: e.toString() });
-    })
-  );
 
   app.ports.submitProof.subscribe((proofData) =>
     (async () => {
@@ -288,7 +282,102 @@ let worker: Worker | null = null;
     })
   );
 
+  app.ports.connectWallet.subscribe((_) =>
+    (async () => {
+      walletHooks.setModalOpen!(true);
+    })().catch((e) => {
+      console.error(e);
+    })
+  );
+
+  app.ports.joinGame.subscribe(() =>
+    (async () => {
+      const txb = new Transaction();
+      sweep.joinGame(txb);
+
+      const signed = await walletHooks.signTx!({
+        transaction: txb,
+        chain: "sui:testnet",
+      });
+      app.ports.signedCb.send(signed);
+    })().catch((e) => {
+      console.error(e);
+    })
+  );
+
+  app.ports.claimPrize.subscribe(() =>
+    (async () => {
+      const txb = new Transaction();
+      const [coin] = sweep.claim(txb);
+      txb.transferObjects([coin], walletHooks.currentWallet!);
+      //const _res = await submitTx(txb);
+    })().catch((e) => {
+      console.error(e);
+    })
+  );
+
+  app.ports.selectSquare.subscribe(({ square, verify }) =>
+    (async () => {
+      const txb = new Transaction();
+      if (verify) {
+        sweep.verifyChoice(txb);
+      }
+      sweep.selectSquare(txb, square.x, square.y);
+
+      const signed = await walletHooks.signTx!({
+        transaction: txb,
+        chain: "sui:testnet",
+      });
+      app.ports.signedCb.send(signed);
+    })().catch((e) => {
+      console.error(e);
+    })
+  );
+
+  app.ports.log.subscribe((txt) => console.log(txt));
+
+  app.ports.disconnect.subscribe(() => {
+    walletHooks.disconnectWallet!();
+  });
+
+  app.ports.boardBytes.subscribe((bts) =>
+    (async () => {
+      const board = sweep.parseBoard(bts);
+      app.ports.boardCb.send(sweep.buildBoard(board));
+    })().catch((e) => {
+      console.error(e);
+    })
+  );
+
+  app.ports.wsConnect.subscribe((shouldConnect) =>
+    (async () => {
+      if (shouldConnect) {
+        ws.connect();
+      } else {
+        ws.close();
+      }
+    })().catch((e) => {
+      console.error(e);
+    })
+  );
+
   ////  ports registration end
+
+  // todo
+  //walletSelect.init(SUI_TESTNET, walletHooks);
+
+  if (wallet) {
+    updateBalances(app, provider, wallet.toSuiAddress()).catch(console.error);
+  }
+
+  document.addEventListener("walletChange", async (event) => {
+    const currentAccount = (<CustomEvent>event).detail.wallet;
+    if (currentAccount) {
+      app.ports.connectCb.send(currentAccount.address);
+    } else {
+      app.ports.connectCb.send(null);
+    }
+  });
 })().catch(console.error);
 
 async function fetchBalances(

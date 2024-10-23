@@ -9,30 +9,35 @@ interface Ports {
   copy: PortOut<string>;
   registerMiner: PortOut<null>;
   importWallet: PortOut<string | null>;
-  claim: PortOut<{
-    miner: string;
-    amount: number;
-    recipient: string;
-  }>;
   submitProof: PortOut<ProofData>;
   mine: PortOut<string>;
   refreshTokens: PortOut<null>;
-  fetchStats: PortOut<null>;
   stopMining: PortOut<null>;
   clearWallet: PortOut<null>;
   combineCoins: PortOut<null>;
+  joinGame: PortOut<null>;
+  selectSquare: PortOut<{
+    square: Choice;
+    verify: boolean;
+  }>;
+  connectWallet: PortOut<null>;
+  boardBytes: PortOut<number[]>;
+  claimPrize: PortOut<null>;
+  disconnect: PortOut<null>;
+  wsConnect: PortOut<boolean>;
   minerCreatedCb: PortIn<Miner>;
   statusCb: PortIn<number>;
   miningError: PortIn<string>;
   proofSubmitError: PortIn<string>;
   balancesCb: PortIn<Balances | null>;
   walletCb: PortIn<Wallet>;
-  claimCb: PortIn<any>;
   proofCb: PortIn<Proof>;
   hashCountCb: PortIn<number>;
-  statsCb: PortIn<Stats>;
-  swapDataCb: PortIn<SwapData>;
   retrySubmitProof: PortIn<ProofData>;
+  connectCb: PortIn<string | null>;
+  boardCb: PortIn<BoardPort>;
+  signedCb: PortIn<SignedTx>;
+  wsConnectCb: PortIn<boolean>;
 }
 
 interface PortOut<T> {
@@ -41,6 +46,20 @@ interface PortOut<T> {
 
 interface PortIn<T> {
   send: (_: T) => void;
+}
+
+interface Flags {
+  wallet: Keypair | null;
+  time: number;
+  rpc: [string, string[]];
+  spectatorId: string;
+  screen: Screen;
+  backend: string;
+}
+
+interface Screen {
+  width: number;
+  height: number;
 }
 
 interface Wallet {
@@ -59,7 +78,6 @@ interface Balances {
 
 interface Miner {
   address: string;
-  claims: number;
 }
 
 interface Keypair {
@@ -76,12 +94,7 @@ interface Stats {
   totalHashes: number;
   totalRewards: number;
   rewardRate: number;
-}
-
-interface SwapData {
-  mineGasFee: number;
-  swapOutput: number;
-  delta: number;
+  daysMining: number;
 }
 
 interface ProofData {
@@ -90,4 +103,43 @@ interface ProofData {
   coinObject: string | null;
 }
 
-export { ElmApp, Wallet, Balances, Miner, Keypair, Proof, Stats, SwapData, ProofData };
+interface Choice {
+  x: number;
+  y: number;
+}
+
+interface GameResult {
+  winner: string;
+  round: number;
+  ended: number;
+}
+
+interface SignedTx {
+  bytes: string;
+  signature: string;
+}
+
+interface BoardPort {
+  status: {
+    kind: string;
+    data: any;
+  };
+  game: number;
+  startingPlayers: number;
+  counts: [[number, number], number][];
+  previousRound: {
+    safePlayers: number;
+    eliminated: number;
+    mines: Choice[];
+    counts: [[number, number], number][];
+    status: string;
+  } | null;
+  previousGame: GameResult | null;
+}
+
+interface ChoiceCount {
+  count: number;
+  choice: Choice;
+}
+
+export { ElmApp, Flags, Screen, Wallet, Balances, Miner, Keypair, Proof, Stats, ProofData, Choice, GameResult, SignedTx, BoardPort, ChoiceCount };
