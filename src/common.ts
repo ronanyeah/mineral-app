@@ -11,7 +11,6 @@ import {
   SuiClient,
   SuiTransactionBlockResponse,
 } from "@mysten/sui/client";
-import { TurbosSdk } from "turbos-clmm-sdk";
 
 import { ProofData } from "./ports";
 import * as constants from "./constants";
@@ -26,31 +25,6 @@ export const getClient = () => {
     url: new URL(process.env.RPC!).toString(),
   });
 };
-
-export async function calcSwapVsMine(sdk: TurbosSdk, mineReward: bigint) {
-  const MINE_GAS_FEE = 811_644;
-
-  const [swap] = await sdk.trade.computeSwapResultV2({
-    pools: [
-      {
-        pool: "0x36f838ab69ea41d959de58dd5b2cb00c9deb7bc1e851a82097b66dfd629f0f3f",
-        a2b: true,
-        amountSpecified: mineReward.toString(),
-      },
-    ],
-    address:
-      "0x7da95f2a3898d8aabbb9b67fb0130c029c73085340db8b21373c514c608e65fe",
-    amountSpecifiedIsInput: true,
-  });
-  const out =
-    Number(swap.amount_b) + Number(swap.protocol_fee) + Number(swap.fee_amount);
-  const delta = (out - MINE_GAS_FEE) / Number(MIST_PER_SUI);
-  return {
-    mineGasFee: MINE_GAS_FEE / Number(MIST_PER_SUI),
-    swapOutput: out / Number(MIST_PER_SUI),
-    delta,
-  };
-}
 
 export function fetchBus(client: SuiClient) {
   return Bus.fetch(
