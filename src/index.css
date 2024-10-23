@@ -1,0 +1,66 @@
+::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes floatingBackground {
+  0% {
+    background-position: 50% 35%;
+  }
+  50% {
+    background-position: 50% 65%;
+  }
+  100% {
+    background-position: 50% 35%;
+  }
+}
+
+@keyframes rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(359deg);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./fonts/ibm-plex-mono-v19-latin-regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Oswald";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./fonts/oswald-v48-latin-regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Jersey 25";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./fonts/jersey-25-v2-latin-regular.woff2") format("woff2");
+}
