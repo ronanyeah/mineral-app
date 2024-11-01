@@ -198,7 +198,12 @@ export function createHash(
 }
 
 export function validateHash(hash: Uint8Array, difficulty: number) {
-  return hash.slice(0, difficulty).reduce((a, b) => a + b, 0) === 0;
+  for (let i = 0; i < difficulty; i++) {
+    if (hash[i] !== 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function int64to8(n: bigint) {
