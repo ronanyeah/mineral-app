@@ -190,7 +190,7 @@ viewHome model =
                     Just (SetModeView ViewSweep)
 
                  else
-                    Nothing
+                    Just (ShowAlert "At the moment, MINESWEEP is only available on desktop.")
                 )
                 [ paddingXY 0 15
                 , centerX
