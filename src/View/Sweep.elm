@@ -596,7 +596,10 @@ viewGameStats model board =
                                     if isRegistered then
                                         [ [ text "✅  Registered"
                                           ]
-                                            |> row [ spacing 10, paddingXY 10 5, centerX ]
+                                            |> row [ spacing 10, paddingXY 10 5 ]
+                                            |> solidBtn
+                                                Nothing
+                                                [ centerX ]
                                         , [ para [ Font.center ] "Minesweep will start on time, and will be played LIVE."
                                           , para [ Font.center ] "Be ready."
                                           ]
