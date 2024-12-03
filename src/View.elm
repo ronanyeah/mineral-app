@@ -176,10 +176,15 @@ viewHome model =
             ]
     , [ text "MINESWEEP"
             |> el [ Font.bold, padding 10, Background.color white, Font.color black ]
-      , List.repeat 4
-            (Img.mine "white" 30)
-            |> row [ spacing 10, title "💣" ]
-            --|> solidBtn (Just (SetModeView ViewSweep)) [ centerX ]
+      , [ Img.mine "white" 25
+        , text "ENTER GAME"
+            |> el
+                [ Font.size 20
+                , Font.bold
+                ]
+        , Img.mine "white" 25
+        ]
+            |> row [ spacing 15, title "💣" ]
             |> btn
                 (if isDesktop model.screen then
                     Just (SetModeView ViewSweep)
@@ -189,6 +194,7 @@ viewHome model =
                 )
                 [ paddingXY 0 15
                 , centerX
+                , pulse
                 ]
       ]
         |> column
