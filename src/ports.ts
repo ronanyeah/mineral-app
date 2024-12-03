@@ -15,16 +15,19 @@ interface Ports {
   stopMining: PortOut<null>;
   clearWallet: PortOut<null>;
   combineCoins: PortOut<null>;
-  joinGame: PortOut<null>;
+  joinGame: PortOut<{
+    stake: string;
+  }>;
   selectSquare: PortOut<{
     square: Choice;
     verify: boolean;
+    stake: string;
   }>;
   connectWallet: PortOut<null>;
   boardBytes: PortOut<number[]>;
   claimPrize: PortOut<null>;
   disconnect: PortOut<null>;
-  wsConnect: PortOut<boolean>;
+  alert: PortOut<string>;
   minerCreatedCb: PortIn<Miner>;
   statusCb: PortIn<number>;
   miningError: PortIn<string>;
@@ -36,8 +39,7 @@ interface Ports {
   retrySubmitProof: PortIn<ProofData>;
   connectCb: PortIn<string | null>;
   boardCb: PortIn<BoardPort>;
-  signedCb: PortIn<SignedTx>;
-  wsConnectCb: PortIn<boolean>;
+  signedCb: PortIn<PortResult<string, SignedTx>>;
 }
 
 interface PortOut<T> {
@@ -48,13 +50,16 @@ interface PortIn<T> {
   send: (_: T) => void;
 }
 
+type PortResult<E, T> =
+    | { err: E; data: null }
+    | { err: null; data: T };
+
 interface Flags {
   wallet: Keypair | null;
   time: number;
   rpc: [string, string[]];
   spectatorId: string;
   screen: Screen;
-  backend: string;
 }
 
 interface Screen {
@@ -135,6 +140,7 @@ interface BoardPort {
     status: string;
   } | null;
   previousGame: GameResult | null;
+  prizePool: number;
 }
 
 interface ChoiceCount {
@@ -142,4 +148,12 @@ interface ChoiceCount {
   choice: Choice;
 }
 
-export { ElmApp, Flags, Screen, Wallet, Balances, Miner, Keypair, Proof, Stats, ProofData, Choice, GameResult, SignedTx, BoardPort, ChoiceCount };
+function portOk<E, T>(data: T): PortResult<E, T> {
+  return { data, err: null };
+}
+
+function portErr<E, T>(err: E): PortResult<E, T> {
+  return { data: null, err };
+}
+
+export { ElmApp, PortResult, portOk, portErr, Flags, Screen, Wallet, Balances, Miner, Keypair, Proof, Stats, ProofData, Choice, GameResult, SignedTx, BoardPort, ChoiceCount };

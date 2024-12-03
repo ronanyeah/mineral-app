@@ -9,7 +9,7 @@ import { SUI_TYPE_ARG } from "@mysten/sui/utils";
 import { MINE } from "./codegen/mineral/mine/structs";
 import { Miner } from "./codegen/mineral/miner/structs";
 
-import { ElmApp, Balances, Flags } from "./ports";
+import { ElmApp, Balances, Flags, portOk, portErr } from "./ports";
 import {
   estimateGasAndSubmit,
   submitProof,
@@ -22,30 +22,33 @@ import {
   waitUntilNextEpoch,
   MineProgress,
 } from "./common";
-const sweep: any = {};
-// todo
-//import * as sweep from "./sweep";
-//import * as walletSelect from "./walletSelect";
-//import { WebSocketClient } from "./lib";
+import * as sweep from "./sweep";
+import * as walletSelect from "./walletSelect";
 
 const { Elm } = require("./Main.elm");
 
 const WALLET_KEY = "WALLET";
 const MINE_KEY = "MINOOOR";
-const SPECTATOR_KEY = "SPECTATOOOR";
 
 // @ts-expect-error
-const backend: string = BACKEND;
+const BOARD: string = BOARD_ID;
 
-// todo
-const walletHooks: any = {};
-//const walletHooks: walletSelect.WalletHooks = {
-//currentWallet: null,
-//signMsg: null,
-//setModalOpen: null,
-//disconnectWallet: null,
-//signTx: null,
-//};
+// @ts-expect-error
+const BOARD_SHARED_VERSION: number = BOARD_SHARED;
+
+const walletHooks: walletSelect.WalletHooks = {
+  currentWallet: null,
+  signMsg: undefined,
+  setModalOpen: undefined,
+  disconnectWallet: undefined,
+  signTx: undefined,
+};
+
+const boardShared = {
+  objectId: BOARD,
+  mutable: true,
+  initialSharedVersion: BOARD_SHARED_VERSION,
+};
 
 const RPCS = [
   "https://fullnode.mainnet.sui.io:443",
@@ -53,11 +56,11 @@ const RPCS = [
   "https://rpc-mainnet.suiscan.xyz",
   "https://mainnet.sui.rpcpool.com",
   "https://sui-mainnet.nodeinfra.com",
-  "https://mainnet-rpc.sui.chainbase.online",
-  "https://sui-mainnet-ca-1.cosmostation.io",
-  "https://sui-mainnet-ca-2.cosmostation.io",
-  "https://sui-mainnet-us-1.cosmostation.io",
-  "https://sui-mainnet-us-2.cosmostation.io",
+  //"https://mainnet-rpc.sui.chainbase.online",
+  //"https://sui-mainnet-ca-1.cosmostation.io",
+  //"https://sui-mainnet-ca-2.cosmostation.io",
+  //"https://sui-mainnet-us-1.cosmostation.io",
+  //"https://sui-mainnet-us-2.cosmostation.io",
 ];
 
 const RPC = RPCS[Math.floor(Math.random() * RPCS.length)];
@@ -70,11 +73,9 @@ let worker: Worker | null = null;
 
 (async () => {
   let wallet = recoverWallet();
-  //const spectatorId = recoverSpectatorId();
-  const spectatorId = "123";
+  const spectatorId = recoverSpectatorId();
 
   const flags: Flags = {
-    backend,
     rpc: [RPC, RPCS],
     time: Date.now(),
     screen: {
@@ -92,9 +93,6 @@ let worker: Worker | null = null;
   });
 
   ////  ports registration start
-
-  //const ws = new WebSocketClient(app, "ws://localhost:8888/api/ws");
-  const ws: any = {};
 
   app.ports.clearWallet.subscribe(() => {
     wallet = null;
@@ -290,51 +288,51 @@ let worker: Worker | null = null;
     })
   );
 
-  app.ports.joinGame.subscribe(() =>
+  app.ports.joinGame.subscribe(({ stake }) =>
     (async () => {
       const txb = new Transaction();
-      sweep.joinGame(txb);
+      sweep.joinGame(txb, boardShared, stake);
 
-      const signed = await walletHooks.signTx!({
-        transaction: txb,
-        chain: "sui:testnet",
-      });
-      app.ports.signedCb.send(signed);
+      const signed = await walletHooks.signTx!(txb);
+      app.ports.signedCb.send(portOk(signed));
     })().catch((e) => {
       console.error(e);
+      app.ports.signedCb.send(portErr("sign fail"));
     })
   );
 
   app.ports.claimPrize.subscribe(() =>
     (async () => {
       const txb = new Transaction();
-      const [coin] = sweep.claim(txb);
+      const [coin] = sweep.claim(txb, boardShared);
       txb.transferObjects([coin], walletHooks.currentWallet!);
-      //const _res = await submitTx(txb);
+      const signed = await walletHooks.signTx!(txb);
+      app.ports.signedCb.send(portOk(signed));
     })().catch((e) => {
       console.error(e);
+      app.ports.signedCb.send(portErr("sign fail"));
     })
   );
 
-  app.ports.selectSquare.subscribe(({ square, verify }) =>
+  app.ports.selectSquare.subscribe(({ square, verify, stake }) =>
     (async () => {
       const txb = new Transaction();
       if (verify) {
-        sweep.verifyChoice(txb);
+        sweep.verifyChoice(txb, boardShared);
       }
-      sweep.selectSquare(txb, square.x, square.y);
+      sweep.selectSquare(txb, square.x, square.y, boardShared, stake);
 
-      const signed = await walletHooks.signTx!({
-        transaction: txb,
-        chain: "sui:testnet",
-      });
-      app.ports.signedCb.send(signed);
+      const signed = await walletHooks.signTx!(txb);
+      app.ports.signedCb.send(portOk(signed));
     })().catch((e) => {
       console.error(e);
+      app.ports.signedCb.send(portErr("sign fail"));
     })
   );
 
   app.ports.log.subscribe((txt) => console.log(txt));
+
+  app.ports.alert.subscribe((txt) => alert(txt));
 
   app.ports.disconnect.subscribe(() => {
     walletHooks.disconnectWallet!();
@@ -349,35 +347,21 @@ let worker: Worker | null = null;
     })
   );
 
-  app.ports.wsConnect.subscribe((shouldConnect) =>
-    (async () => {
-      if (shouldConnect) {
-        ws.connect();
-      } else {
-        ws.close();
-      }
-    })().catch((e) => {
-      console.error(e);
-    })
-  );
-
   ////  ports registration end
 
-  // todo
-  //walletSelect.init(SUI_TESTNET, walletHooks);
-
-  if (wallet) {
-    updateBalances(app, provider, wallet.toSuiAddress()).catch(console.error);
-  }
-
-  document.addEventListener("walletChange", async (event) => {
-    const currentAccount = (<CustomEvent>event).detail.wallet;
-    if (currentAccount) {
-      app.ports.connectCb.send(currentAccount.address);
+  walletSelect.walletSubscribe((wallet) => {
+    if (wallet) {
+      app.ports.connectCb.send(wallet.address);
     } else {
       app.ports.connectCb.send(null);
     }
   });
+
+  walletSelect.init(walletHooks);
+
+  if (wallet) {
+    updateBalances(app, provider, wallet.toSuiAddress()).catch(console.error);
+  }
 })().catch(console.error);
 
 async function fetchBalances(
@@ -483,4 +467,16 @@ function persistMiningProgress(data: MineProgress) {
       hash: Array.from(data.hash),
     })
   );
+}
+
+function recoverSpectatorId(): string {
+  const SPECTATOR_KEY = "SPECTATOOOR";
+  const val = localStorage.getItem(SPECTATOR_KEY);
+  if (!val) {
+    const id = crypto.randomUUID();
+    localStorage.setItem(SPECTATOR_KEY, id);
+    return id;
+  } else {
+    return val;
+  }
 }

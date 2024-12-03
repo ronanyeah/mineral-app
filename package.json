@@ -1,15 +1,17 @@
 {
   "scripts": {
     "build": "webpack",
+    "build:prod": "npm run netlify-setup && npm run build:worker && npm run build",
     "watch": "webpack serve",
+    "netlify-setup": "sed -i s@FORWARD_URL@$BACKEND@g netlify.toml",
     "build:cli": "npm run build:cli:js && npm run build:cli:pkg",
     "build:cli:js": "esbuild src/cli/index.ts --bundle --outfile=cli/index.js --platform=node",
     "build:cli:pkg": "pkg -t latest-linux,latest-win,latest-macos cli/index.js -o ./cli/mineral --options no-warnings",
     "build:worker": "esbuild src/worker.ts --bundle --outfile=public/worker.js"
   },
   "dependencies": {
-    "@mysten/dapp-kit": "^0.14.25",
-    "@mysten/sui": "^1.12.0",
+    "@mysten/dapp-kit": "^0.14.38",
+    "@mysten/sui": "^1.15.0",
     "@noble/hashes": "^1.4.0",
     "@tanstack/react-query": "^5.59.6",
     "@types/react": "^18.3.11",
@@ -25,13 +27,16 @@
     "style-loader": "^4.0.0",
     "ts-loader": "^9.4.2",
     "typescript": "^5.0.2",
-    "webpack": "^5.39.1",
+    "webpack": "^5.96.1",
     "webpack-cli": "^5.0.1"
   },
   "devDependencies": {
     "elm-reloader": "^1.0.0",
     "esbuild": "^0.24.0",
+    "html-webpack-plugin": "^5.6.3",
     "pkg": "^5.8.1",
-    "webpack-dev-server": "^5.0.4"
+    "webpack-bundle-analyzer": "^4.10.2",
+    "webpack-dev-server": "^5.0.4",
+    "webpack-virtual-modules": "^0.6.2"
   }
 }

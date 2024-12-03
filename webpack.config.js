@@ -3,7 +3,7 @@ const webpack = require("webpack");
 
 const publicFolder = resolve("./public");
 
-const { BACKEND } = process.env;
+const { BOARD_SHARED, BACKEND, BOARD_ID } = process.env;
 
 module.exports = (env) => {
   const devMode = Boolean(env.WEBPACK_SERVE);
@@ -36,6 +36,13 @@ module.exports = (env) => {
     devServer: {
       port: 8000,
       hot: "only",
+      proxy: [
+        {
+          context: ["/api"],
+          target: BACKEND,
+          changeOrigin: true,
+        },
+      ],
     },
     module: {
       rules: [
@@ -63,9 +70,11 @@ module.exports = (env) => {
       extensions: [".ts", ".js"],
     },
     plugins: [
+      //new (require("webpack-bundle-analyzer").BundleAnalyzerPlugin)(),
       new webpack.NoEmitOnErrorsPlugin(),
       new webpack.DefinePlugin({
-        BACKEND: JSON.stringify(BACKEND),
+        BOARD_ID: JSON.stringify(BOARD_ID),
+        BOARD_SHARED: JSON.stringify(BOARD_SHARED),
       }),
     ],
   };

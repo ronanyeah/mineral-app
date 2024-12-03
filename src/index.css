@@ -2,6 +2,15 @@
   display: none;
 }
 
+@keyframes enter {
+  from {
+    transform: translateY(0px) scaleY(0);
+  }
+  to {
+    transform: translateY(-8px) scaleY(1);
+  }
+}
+
 @keyframes floatingBackground {
   0% {
     background-position: 50% 35%;

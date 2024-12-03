@@ -1,0 +1,4 @@
+[[redirects]]
+from = "/api/*"
+to = "FORWARD_URL/api/:splat"
+status = 200

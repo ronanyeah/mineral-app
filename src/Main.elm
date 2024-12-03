@@ -2,11 +2,15 @@ module Main exposing (main)
 
 import Browser
 import Json.Decode as JD
+import Maybe.Extra
+import Mineral.Api
+import PortResult
 import Ports
 import Task
 import Time
 import Types exposing (..)
 import Update exposing (update)
+import Utils
 import View exposing (view)
 
 
@@ -23,7 +27,7 @@ main =
 init : Ports.Flags -> ( Model, Cmd Msg )
 init flags =
     ( { balance = 0
-      , backend = flags.backend
+      , txInProgress = Nothing
       , screen = flags.screen
       , exportWarning = False
       , addressInput = ""
@@ -43,13 +47,13 @@ init flags =
       , connectedWallet = Nothing
       , player = Nothing
       , board = Nothing
-      , wsConnected = False
       , sweepView = SweepHome
       , pollingInProgress = False
       , spectators = 0
       , spectatorId = flags.spectatorId
       , viewMode = ViewHome
-      , wallet =
+      , playerAction = Ready
+      , miningWallet =
             flags.wallet
                 |> Maybe.map
                     (\kp ->
@@ -60,24 +64,43 @@ init flags =
                         }
                     )
       }
-    , [ Update.getRequest
-            (flags.backend ++ "/stats")
-            Update.decodeStats
-            |> Task.attempt StatsCb
-
-      --, Update.generateDemoMines
-      --|> Task.perform MineCb
-      --, Update.fetchBoard flags.backend flags.spectatorId
-      --|> Task.attempt PollBoardCb
-      ]
-        |> Cmd.batch
+    , Mineral.Api.getMineralStatsTask {}
+        |> Task.mapError Utils.convertError
+        |> Task.attempt StatsCb
     )
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
+subscriptions model =
+    let
+        pollingCmd =
+            if model.viewMode == ViewSweep then
+                model.board
+                    |> Maybe.map
+                        (\board ->
+                            case board.status of
+                                BoardWaiting _ ->
+                                    5000
+
+                                Ended ->
+                                    15000
+
+                                Playing _ ->
+                                    1000
+                        )
+                    |> Maybe.Extra.unwrap Sub.none
+                        (\interval ->
+                            Time.every
+                                interval
+                                (Time.posixToMillis >> PollingTick)
+                        )
+
+            else
+                Sub.none
+    in
     Sub.batch
-        [ Ports.balancesCb BalancesCb
+        [ pollingCmd
+        , Ports.balancesCb BalancesCb
         , Ports.walletCb WalletCb
         , Ports.statusCb StatusCb
         , Ports.minerCreatedCb MinerCreatedCb
@@ -88,11 +111,9 @@ subscriptions _ =
         , Ports.hashCountCb HashCountCb
         , Ports.connectCb ConnectCb
         , Ports.boardCb BoardCb
-        , Ports.wsConnectCb WsConnectCb
-        , Ports.signedCb SignedCb
-        , Time.every 2000 (Time.posixToMillis >> Tick)
-
-        --, Time.every 1500 (Time.posixToMillis >> PollingTick)
+        , Ports.signedCb (PortResult.parse >> SignedCb)
+        , Time.every 1500 (Time.posixToMillis >> DemoMinesTick)
+        , Time.every 1000 (Time.posixToMillis >> TimeTick)
         ]
 
 

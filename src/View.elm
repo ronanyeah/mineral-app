@@ -1,4 +1,4 @@
-module View exposing (view)
+module View exposing (bodyAttrs, view, viewBody)
 
 import Element exposing (..)
 import Element.Background as Background
@@ -13,41 +13,12 @@ import Maybe.Extra exposing (unwrap)
 import Types exposing (..)
 import Utils exposing (..)
 import View.Lib exposing (..)
+import View.Sweep
 
 
 view : Model -> Html Msg
 view model =
-    (if isDesktop model.screen then
-        case model.viewMode of
-            ViewHome ->
-                viewSpace model (viewHome model) none
-
-            ViewMiner ->
-                viewSpace model (viewMiner model) none
-
-            ViewSweep ->
-                --viewSpace model (View.Sweep.viewDash model) (View.Sweep.viewPanel model)
-                none
-
-     else
-        (case model.viewMode of
-            ViewHome ->
-                viewHome model
-
-            ViewMiner ->
-                viewMiner model
-
-            ViewSweep ->
-                --View.Sweep.viewDash model
-                none
-        )
-            |> el
-                [ height fill
-                , width fill
-                , paddingXY 0 30
-                , Background.color black
-                ]
-    )
+    viewBody model
         |> Element.layoutWith
             { options =
                 [ Element.focusStyle
@@ -57,12 +28,65 @@ view model =
                     }
                 ]
             }
-            [ width fill
-            , height fill
-            , mainFont
-            , Font.color white
-            , Background.color black
-            ]
+            ([ width fill
+             , height fill
+             ]
+                ++ bodyAttrs
+            )
+
+
+bodyAttrs =
+    [ mainFont
+    , Font.color white
+    , Background.color black
+    ]
+
+
+viewBody : Model -> Element Msg
+viewBody model =
+    if isDesktop model.screen then
+        case model.viewMode of
+            ViewHome ->
+                viewSpace model (viewHome model) none
+
+            ViewMiner ->
+                viewSpace model (viewMiner model) none
+
+            ViewSweep ->
+                model.board
+                    |> unwrap
+                        ( Nothing
+                        , View.Sweep.viewDemo model
+                        )
+                        (View.Sweep.viewPair model >> Tuple.mapFirst Just)
+                    |> (\( l, r ) ->
+                            viewSpace model (View.Sweep.viewDash model l) r
+                       )
+
+    else
+        (case model.viewMode of
+            ViewHome ->
+                viewHome model
+
+            ViewMiner ->
+                viewMiner model
+
+            ViewSweep ->
+                -- todo refactor
+                model.board
+                    |> unwrap
+                        (View.Sweep.viewDash model Nothing)
+                        (View.Sweep.viewPair model >> Tuple.first)
+                    |> (\l ->
+                            View.Sweep.viewDash model (Just l)
+                       )
+        )
+            |> el
+                [ height fill
+                , width fill
+                , paddingXY 0 30
+                , Background.color black
+                ]
 
 
 viewHome : Model -> Element Msg
@@ -150,15 +174,19 @@ viewHome model =
             , Border.color white
             , width fill
             ]
-    , [ text "[REDACTED]"
+    , [ text "MINESWEEP"
             |> el [ Font.bold, padding 10, Background.color white, Font.color black ]
       , List.repeat 4
             (Img.mine "white" 30)
             |> row [ spacing 10, title "💣" ]
             --|> solidBtn (Just (SetModeView ViewSweep)) [ centerX ]
-            |> el
-                --btn
-                --(Just (SetModeView ViewSweep))
+            |> btn
+                (if isDesktop model.screen then
+                    Just (SetModeView ViewSweep)
+
+                 else
+                    Nothing
+                )
                 [ paddingXY 0 15
                 , centerX
                 ]
@@ -190,7 +218,7 @@ viewMiner model =
       ]
         |> row [ spacing 20 ]
         |> btn (Just (SetModeView ViewHome)) [ centerX ]
-    , viewBody model
+    , viewMiningBody model
     ]
         |> column
             [ width fill
@@ -228,9 +256,9 @@ viewSpace model vLeft vRight =
             ]
 
 
-viewBody : Model -> Element Msg
-viewBody model =
-    model.wallet
+viewMiningBody : Model -> Element Msg
+viewMiningBody model =
+    model.miningWallet
         |> unwrap
             ([ para [ Font.center ] "You will need a Sui wallet to begin mining."
              , [ img [ height <| px 30 ] "/icons/wallet.png"

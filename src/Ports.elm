@@ -1,6 +1,7 @@
 port module Ports exposing (..)
 
 import Json.Decode exposing (Value)
+import PortResult exposing (PortResult)
 
 
 type alias Flags =
@@ -9,7 +10,6 @@ type alias Flags =
     , rpc : ( String, List String )
     , spectatorId : String
     , screen : Screen
-    , backend : String
     }
 
 
@@ -103,6 +103,7 @@ type alias BoardPort =
             , status : String
             }
     , previousGame : Maybe GameResult
+    , prizePool : Int
     }
 
 
@@ -146,10 +147,10 @@ port clearWallet : () -> Cmd msg
 port combineCoins : () -> Cmd msg
 
 
-port joinGame : () -> Cmd msg
+port joinGame : { stake : String } -> Cmd msg
 
 
-port selectSquare : { square : Choice, verify : Bool } -> Cmd msg
+port selectSquare : { square : Choice, verify : Bool, stake : String } -> Cmd msg
 
 
 port connectWallet : () -> Cmd msg
@@ -164,7 +165,7 @@ port claimPrize : () -> Cmd msg
 port disconnect : () -> Cmd msg
 
 
-port wsConnect : Bool -> Cmd msg
+port alert : String -> Cmd msg
 
 
 
@@ -204,7 +205,4 @@ port connectCb : (Maybe String -> msg) -> Sub msg
 port boardCb : (BoardPort -> msg) -> Sub msg
 
 
-port signedCb : (SignedTx -> msg) -> Sub msg
-
-
-port wsConnectCb : (Bool -> msg) -> Sub msg
+port signedCb : (PortResult String SignedTx -> msg) -> Sub msg

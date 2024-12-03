@@ -7,7 +7,7 @@ import Ports exposing (..)
 
 type alias Model =
     { balance : Int
-    , wallet : Maybe Wallet
+    , miningWallet : Maybe Wallet
     , walletInput : String
     , miningStatus : Maybe MiningStatus
     , view : View
@@ -21,7 +21,6 @@ type alias Model =
     , stats : Maybe (Maybe Ports.Stats)
     , rpcs : ( String, List String )
     , screen : Ports.Screen
-    , backend : String
     , sweepView : SweepView
     , connectedWallet : Maybe String
     , time : Int
@@ -30,13 +29,21 @@ type alias Model =
     -- todo - add to player?
     , playerResult : Maybe PlayerResult
     , board : Maybe Board
-    , wsConnected : Bool
     , demoMines : List Choice
     , pollingInProgress : Bool
     , spectators : Int
     , spectatorId : String
     , viewMode : ViewMode
+
+    --
+    , playerAction : DataFetch
+    , txInProgress : Maybe TxInProgress
     }
+
+
+type TxInProgress
+    = TxRegister Int
+    | TxSquareSelect Int Choice
 
 
 type Msg
@@ -64,26 +71,25 @@ type Msg
     | MiningError String
     | ManageCoins
     | StatsCb (Result Http.Error Ports.Stats)
-    | Spectate
+    | GoToBoard
     | PollBoardCb (Result Http.Error BoardData)
-    | Tick Int
-    | MineCb (List Choice)
     | ConnectWallet
     | ConnectCb (Maybe String)
-    | PlayerCb (Result Http.Error (Maybe Commit))
+    | PlayerCb (Result Http.Error PlayerStatus)
+    | TxCb (Result Http.Error Bool)
     | SubmitCb (Result Http.Error String)
-    | SignedCb SignedTx
+    | SignedCb (Result String SignedTx)
     | BoardCb BoardPort
-    | JoinGame
-    | WsConnectCb Bool
-    | Continue
-    | SelectSquare Choice Bool
+    | JoinGame Int String
+    | SelectSquare { round : Int, coord : Choice }
+    | ShowAlert String
     | ClaimPrize
     | SetSweepView SweepView
     | SetModeView ViewMode
     | PollingTick Int
+    | DemoMinesTick Int
+    | TimeTick Int
     | CheckPlayerStatus
-    | EnterAsPlayer
     | Disconnect
 
 
@@ -118,6 +124,18 @@ type BoardStatus
     | Ended
 
 
+type DataFetch
+    = Ready
+    | Loading
+    | Fail String
+
+
+type alias PlayerStatus =
+    { registration : Maybe Commit
+    , stake : Maybe String
+    }
+
+
 type alias WaitingData =
     { registered : Int
     , startTime : Int
@@ -133,8 +151,7 @@ type alias PlayingData =
 
 type alias Player =
     { commit : Maybe Commit
-    , stake : Maybe Bool
-    , inPlay : Bool
+    , stake : Maybe String
     }
 
 
@@ -152,6 +169,7 @@ type alias Board =
     , counts : Dict ( Int, Int ) Int
     , previousRound : Maybe RoundResult
     , previousGame : Maybe GameResult
+    , prizePool : Int
     }
 
 
@@ -160,8 +178,14 @@ type alias RoundResult =
     , eliminated : Int
     , mines : List Choice
     , counts : Dict ( Int, Int ) Int
-    , status : String
+    , status : RoundStatus
     }
+
+
+type RoundStatus
+    = RoundProceed
+    | RoundWipeout
+    | RoundFinal
 
 
 type alias PlayerResult =

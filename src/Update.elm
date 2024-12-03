@@ -4,14 +4,14 @@ import Dict
 import Helpers.Http exposing (parseError)
 import Http
 import Json.Decode as JD
-import Json.Encode as JE
 import Maybe.Extra exposing (isJust, unwrap)
+import Mineral.Api
 import Ports
 import Process
 import Random
 import Result.Extra exposing (unpack)
+import Svg exposing (g)
 import Task exposing (Task)
-import Time
 import Types exposing (..)
 import Utils exposing (..)
 
@@ -22,7 +22,7 @@ update msg model =
         ClearWallet ->
             if model.confirmDelete then
                 ( { model
-                    | wallet = Nothing
+                    | miningWallet = Nothing
                     , confirmDelete = False
                     , showSecret = False
                     , miningStatus = Nothing
@@ -65,8 +65,8 @@ update msg model =
 
                                 else
                                     model.miningStatus
-                            , wallet =
-                                model.wallet
+                            , miningWallet =
+                                model.miningWallet
                                     |> Maybe.map
                                         (\wl ->
                                             { wl
@@ -134,10 +134,10 @@ update msg model =
             , Ports.stopMining ()
             )
 
-        ProofSubmitError e ->
+        ProofSubmitError _ ->
             -- If submission fails revert to mining flow to re-verify proof
             -- Progress should not be lost
-            model.wallet
+            model.miningWallet
                 |> Maybe.andThen .miningAccount
                 |> unwrap ( model, Cmd.none )
                     (\minerObj ->
@@ -151,7 +151,7 @@ update msg model =
 
         WalletCb wallet ->
             ( { model
-                | wallet = Just wallet
+                | miningWallet = Just wallet
                 , walletInput = ""
               }
             , Cmd.none
@@ -169,7 +169,7 @@ update msg model =
                 )
 
         ProofCb proof ->
-            model.wallet
+            model.miningWallet
                 |> Maybe.andThen
                     (\wallet ->
                         wallet.miningAccount
@@ -200,8 +200,8 @@ update msg model =
 
         MinerCreatedCb miner ->
             ( { model
-                | wallet =
-                    model.wallet
+                | miningWallet =
+                    model.miningWallet
                         |> Maybe.map
                             (\wl ->
                                 { wl
@@ -261,7 +261,7 @@ update msg model =
                 , if claimComplete then
                     [ Process.sleep 3000
                         |> Task.perform (always UnsetMessage)
-                    , model.wallet
+                    , model.miningWallet
                         |> Maybe.andThen .miningAccount
                         |> unwrap Cmd.none
                             (.address >> Ports.mine)
@@ -294,7 +294,7 @@ update msg model =
                 | miningStatus = Just SearchingForProof
                 , miningError = Nothing
               }
-            , model.wallet
+            , model.miningWallet
                 |> Maybe.andThen .miningAccount
                 |> unwrap (Ports.registerMiner ())
                     (.address >> Ports.mine)
@@ -314,40 +314,83 @@ update msg model =
             , Ports.importWallet Nothing
             )
 
-        EnterAsPlayer ->
-            ( { model
-                | sweepView = SweepPlay
-                , player =
-                    model.player
-                        |> Maybe.map (\p -> { p | inPlay = True })
-              }
-            , Ports.wsConnect True
-            )
-
         Disconnect ->
             ( model
             , Ports.disconnect ()
             )
 
         SetModeView v ->
-            let
-                stopMining =
-                    isJust model.miningStatus
-            in
-            ( { model
-                | viewMode = v
-                , miningStatus =
-                    if stopMining then
-                        Nothing
+            if v == model.viewMode then
+                ( model, Cmd.none )
 
-                    else
-                        model.miningStatus
-              }
-            , if stopMining then
-                Ports.stopMining ()
+            else
+                (case v of
+                    ViewHome ->
+                        ( { model | sweepView = SweepHome }
+                        , Cmd.none
+                        )
 
-              else
-                Cmd.none
+                    ViewMiner ->
+                        ( model, Cmd.none )
+
+                    ViewSweep ->
+                        let
+                            fetchPlayerTask =
+                                if model.playerAction == Loading then
+                                    Nothing
+
+                                else
+                                    model.connectedWallet
+                                        |> Maybe.map
+                                            (\w ->
+                                                fetchRegistration w
+                                                    |> Task.attempt PlayerCb
+                                            )
+                        in
+                        ( { model
+                            | playerAction =
+                                if isJust fetchPlayerTask then
+                                    Loading
+
+                                else
+                                    model.playerAction
+                          }
+                        , [ fetchBoard model.spectatorId
+                                |> Task.attempt PollBoardCb
+                          , fetchPlayerTask
+                                |> Maybe.withDefault Cmd.none
+                          ]
+                            |> Cmd.batch
+                        )
+                )
+                    |> (\( md, cmds ) ->
+                            let
+                                stopMining =
+                                    isJust model.miningStatus
+                            in
+                            ( { md
+                                | viewMode = v
+                                , miningStatus =
+                                    if stopMining then
+                                        Nothing
+
+                                    else
+                                        model.miningStatus
+                              }
+                            , [ if stopMining then
+                                    Ports.stopMining ()
+
+                                else
+                                    Cmd.none
+                              , cmds
+                              ]
+                                |> Cmd.batch
+                            )
+                       )
+
+        ShowAlert v ->
+            ( model
+            , Ports.alert v
             )
 
         SetSweepView v ->
@@ -357,25 +400,31 @@ update msg model =
             , Cmd.none
             )
 
-        SignedCb tx ->
-            ( model
-            , Http.task
-                { method = "POST"
-                , headers = []
-                , url = model.backend ++ "/submit"
-                , body =
-                    [ ( "signature", JE.string tx.signature )
-                    , ( "bytes", JE.string tx.bytes )
-                    ]
-                        |> JE.object
-                        |> Http.jsonBody
-                , resolver =
-                    decodeCommit
-                        |> Helpers.Http.jsonResolver
-                , timeout = Nothing
-                }
-                |> Task.attempt PlayerCb
-            )
+        SignedCb res ->
+            res
+                |> unpack
+                    (\err ->
+                        ( { model
+                            | playerAction = Fail "Transaction sign fail"
+                            , txInProgress = Nothing
+                          }
+                        , Ports.log err
+                        )
+                    )
+                    (\tx ->
+                        ( { model
+                            | playerAction = Loading
+                          }
+                        , Mineral.Api.submitTransactionTask
+                            { body =
+                                { bytes = tx.bytes
+                                , signature = tx.signature
+                                }
+                            }
+                            |> Task.mapError Utils.convertError
+                            |> Task.attempt TxCb
+                        )
+                    )
 
         SubmitCb res ->
             res
@@ -397,82 +446,65 @@ update msg model =
                     ( model, Cmd.none )
                     (\w ->
                         ( model
-                        , getRequest (model.backend ++ "/player/" ++ w)
-                            decodeCommit
+                        , fetchRegistration w
                             |> Task.attempt PlayerCb
                         )
                     )
 
-        MineCb res ->
-            ( { model
-                | demoMines =
-                    res
-                        |> List.filter
-                            (\m ->
-                                not
-                                    (List.member m model.demoMines)
-                            )
-              }
-            , Process.sleep 1500
-                |> Task.andThen
-                    (always generateDemoMines)
-                |> Task.perform MineCb
-            )
-
-        Continue ->
-            ( { model | playerResult = Nothing }
-            , Cmd.none
-            )
-
-        Tick t ->
-            ( { model
-                | time = t
-              }
-            , Cmd.none
-            )
-
-        Spectate ->
+        GoToBoard ->
             ( { model
                 | playerResult = Nothing
                 , sweepView = SweepPlay
-                , player =
-                    model.player
-                        |> Maybe.map (\p -> { p | inPlay = False })
               }
-            , if model.wsConnected then
-                Ports.wsConnect False
-
-              else
-                Cmd.none
+            , Cmd.none
             )
 
-        PollingTick now ->
+        TimeTick now ->
+            ( { model
+                | time = now
+              }
+            , Cmd.none
+            )
+
+        DemoMinesTick now ->
             let
-                gameIsStarting =
-                    model.board
-                        |> unwrap False
-                            (\board ->
-                                case board.status of
-                                    BoardWaiting data ->
-                                        data.startTime <= now
+                mines =
+                    if model.viewMode == ViewSweep && model.sweepView == SweepHome then
+                        now
+                            |> Random.initialSeed
+                            |> Random.step
+                                (Random.map2 Ports.Choice
+                                    (Random.int 0 19)
+                                    (Random.int 0 19)
+                                    |> Random.list 70
+                                )
+                            |> Tuple.first
+                            |> List.filter
+                                (\m ->
+                                    not
+                                        (List.member m model.demoMines)
+                                )
 
-                                    _ ->
-                                        False
-                            )
-
-                shouldFetch =
-                    not model.pollingInProgress
-                        && (model.sweepView == SweepPlay && not model.wsConnected)
-                        || (model.sweepView == SweepHome && gameIsStarting)
+                    else
+                        model.demoMines
             in
-            ( { model | pollingInProgress = shouldFetch }
-            , if shouldFetch then
-                fetchBoard model.backend model.spectatorId
-                    |> Task.attempt PollBoardCb
-
-              else
-                Cmd.none
+            ( { model
+                | demoMines = mines
+              }
+            , Cmd.none
             )
+
+        PollingTick _ ->
+            if model.pollingInProgress then
+                ( model, Cmd.none )
+
+            else
+                ( { model
+                    | pollingInProgress = True
+                  }
+                , fetchBoard model.spectatorId
+                    |> Task.attempt PollBoardCb
+                )
 
         PollBoardCb res ->
             res
@@ -508,7 +540,7 @@ update msg model =
                     )
 
         ClaimPrize ->
-            ( model
+            ( { model | playerAction = Loading }
             , Ports.claimPrize ()
             )
 
@@ -517,25 +549,52 @@ update msg model =
             , Ports.connectWallet ()
             )
 
-        WsConnectCb val ->
-            ( { model | wsConnected = val }
-            , Cmd.none
-            )
-
         ConnectCb val ->
+            let
+                fetchPlayerCmd =
+                    if model.viewMode == ViewSweep then
+                        val
+                            |> Maybe.map
+                                (\w ->
+                                    fetchRegistration w
+                                        |> Task.attempt PlayerCb
+                                )
+
+                    else
+                        Nothing
+            in
             ( { model
                 | connectedWallet = val
+                , player = Nothing
+                , playerAction =
+                    if isJust fetchPlayerCmd then
+                        Loading
+
+                    else
+                        Ready
               }
-            , Cmd.none
+            , fetchPlayerCmd
+                |> Maybe.withDefault Cmd.none
             )
 
-        SelectSquare coord verify ->
-            ( model
-            , Ports.selectSquare
-                { square = coord
-                , verify = verify
-                }
-            )
+        SelectSquare { coord, round } ->
+            model.player
+                |> Maybe.andThen .stake
+                |> unwrap ( model, Cmd.none )
+                    (\stake ->
+                        ( { model
+                            | playerAction = Loading
+                            , txInProgress = Just <| TxSquareSelect round coord
+                          }
+                        , Ports.selectSquare
+                            { square = coord
+                            , verify =
+                                -- add ix to verify previous selection
+                                round > 1
+                            , stake = stake
+                            }
+                        )
+                    )
 
         BoardCb res ->
             res
@@ -554,6 +613,7 @@ update msg model =
                                 (\s ->
                                     { game = val.game
                                     , status = s
+                                    , prizePool = val.prizePool
                                     , startingPlayers = val.startingPlayers
                                     , previousGame = val.previousGame
                                     , previousRound =
@@ -564,7 +624,16 @@ update msg model =
                                                     , eliminated = v.eliminated
                                                     , mines = v.mines
                                                     , counts = Dict.fromList v.counts
-                                                    , status = v.status
+                                                    , status =
+                                                        case v.status of
+                                                            "wipeout" ->
+                                                                RoundWipeout
+
+                                                            "final" ->
+                                                                RoundFinal
+
+                                                            _ ->
+                                                                RoundProceed
                                                     }
                                                 )
                                     , counts = Dict.fromList val.counts
@@ -586,46 +655,6 @@ update msg model =
                                 )
                                 (\prevBoard ->
                                     let
-                                        wsChange =
-                                            if model.sweepView /= SweepPlay then
-                                                Nothing
-
-                                            else if model.wsConnected then
-                                                case newBoard.status of
-                                                    Playing data ->
-                                                        model.player
-                                                            |> Maybe.andThen .commit
-                                                            |> unwrap Nothing
-                                                                (\pl ->
-                                                                    if validatePlayerAgainstGame data pl newBoard then
-                                                                        Nothing
-
-                                                                    else
-                                                                        Just False
-                                                                )
-
-                                                    Ended ->
-                                                        Just True
-
-                                                    BoardWaiting _ ->
-                                                        Just True
-
-                                            else
-                                                case newBoard.status of
-                                                    Playing data ->
-                                                        model.player
-                                                            |> Maybe.andThen .commit
-                                                            |> Maybe.map
-                                                                (\pl ->
-                                                                    validatePlayerAgainstGame data pl newBoard
-                                                                )
-
-                                                    Ended ->
-                                                        Nothing
-
-                                                    BoardWaiting _ ->
-                                                        Nothing
-
                                         newRoundData =
                                             -- final round advance does not count
                                             case newBoard.status of
@@ -649,63 +678,117 @@ update msg model =
                                                 newRoundData
                                                 newBoard.previousRound
                                                 (model.player
-                                                    |> Maybe.andThen
-                                                        (\pl ->
-                                                            if pl.inPlay then
-                                                                pl.commit
-
-                                                            else
-                                                                Nothing
-                                                        )
+                                                    |> Maybe.andThen .commit
                                                 )
+                                                |> Maybe.andThen identity
                                     in
                                     ( { model
                                         | board = Just newBoard
                                         , playerResult =
-                                            model.playerResult
-                                                |> Maybe.Extra.or playerResult
+                                            playerResult
+                                                |> Maybe.Extra.orElse model.playerResult
                                       }
-                                    , wsChange
-                                        |> unwrap Cmd.none Ports.wsConnect
+                                    , Cmd.none
                                     )
                                 )
+                    )
+
+        TxCb res ->
+            res
+                |> unpack
+                    (\err ->
+                        ( { model | playerAction = Fail <| parseError err }
+                        , Ports.log ("TxCb:\n" ++ parseError err)
+                        )
+                    )
+                    (\txOk ->
+                        if txOk then
+                            model.txInProgress
+                                |> unwrap
+                                    ( model, Ports.log "Tx not found" )
+                                    (\tx ->
+                                        case tx of
+                                            TxSquareSelect round coord ->
+                                                ( { model
+                                                    | playerAction = Ready
+                                                    , txInProgress = Nothing
+                                                    , player =
+                                                        model.player
+                                                            |> Maybe.map
+                                                                (\player ->
+                                                                    { commit =
+                                                                        player.commit
+                                                                            |> Maybe.map
+                                                                                (\c ->
+                                                                                    { c
+                                                                                        | choice = Just coord
+                                                                                        , round = round
+                                                                                    }
+                                                                                )
+                                                                    , stake = player.stake
+                                                                    }
+                                                                )
+                                                  }
+                                                , Cmd.none
+                                                )
+
+                                            TxRegister g ->
+                                                ( { model
+                                                    | playerAction = Ready
+                                                    , txInProgress = Nothing
+                                                    , player =
+                                                        Just
+                                                            { commit =
+                                                                Just
+                                                                    { game = g
+                                                                    , choice = Nothing
+                                                                    , round = 1
+                                                                    }
+                                                            , stake =
+                                                                model.player
+                                                                    |> Maybe.andThen .stake
+                                                            }
+                                                  }
+                                                , Cmd.none
+                                                )
+                                    )
+
+                        else
+                            ( { model
+                                | playerAction = Fail "Tx fail"
+                                , txInProgress = Nothing
+                              }
+                            , Ports.alert "There was a problem. Please try again."
+                            )
                     )
 
         PlayerCb res ->
             res
                 |> unpack
                     (\err ->
-                        ( model
+                        ( { model | playerAction = Fail <| parseError err }
                         , Ports.log ("PlayerCb:\n" ++ parseError err)
                         )
                     )
-                    (\val ->
+                    (\data ->
                         ( { model
-                            | player =
+                            | playerAction = Ready
+                            , player =
                                 Just
-                                    { commit = val
-                                    , stake = Nothing
-                                    , inPlay =
-                                        model.board
-                                            |> Maybe.andThen parsePlayingData
-                                            |> Maybe.andThen
-                                                (\( board, pd ) ->
-                                                    val
-                                                        |> Maybe.map
-                                                            (\com ->
-                                                                validatePlayerAgainstGame pd com board
-                                                            )
-                                                )
-                                            |> Maybe.withDefault False
+                                    { commit = data.registration
+                                    , stake = data.stake
                                     }
                           }
                         , Cmd.none
                         )
                     )
 
-        JoinGame ->
-            ( model
-            , Ports.joinGame ()
+        JoinGame game stake ->
+            ( { model
+                | playerAction = Loading
+                , txInProgress = Just <| TxRegister game
+              }
+            , Ports.joinGame { stake = stake }
             )
 
 
@@ -727,113 +810,137 @@ decodeCommit =
             |> JD.nullable
             |> JD.field "choice"
         )
-        |> JD.nullable
 
 
-buildPlayerResult playData prevRound commit =
-    commit.choice
-        |> unwrap
-            { outcome = DidNotPlay
-            , mines = prevRound.mines
-            , playerChoice = Nothing
-            , counts = prevRound.counts
-            , round = playData.round - 1
-            }
-            (\choice ->
-                let
-                    participated =
-                        commit.round == playData.round - 1
-                in
-                { outcome =
-                    if participated then
-                        if prevRound.status == "wipeout" then
-                            Wipeout
+buildPlayerResult game prevRound player =
+    let
+        previousRound =
+            game.round - 1
+    in
+    if player.round < previousRound then
+        -- stale player
+        Nothing
 
-                        else if List.member choice prevRound.mines then
-                            Eliminated
+    else
+        player.choice
+            |> unwrap
+                (if game.round == 2 then
+                    -- can only DNP with no choice in round 1
+                    -- otherwise stale
+                    Just
+                        { outcome = DidNotPlay
+                        , mines = prevRound.mines
+                        , playerChoice = Nothing
+                        , counts = prevRound.counts
+                        , round = previousRound
+                        }
+
+                 else
+                    Nothing
+                )
+                (\choice ->
+                    let
+                        participated =
+                            player.round == previousRound
+                    in
+                    { outcome =
+                        if participated then
+                            if prevRound.status == RoundWipeout then
+                                Wipeout
+
+                            else if List.member choice prevRound.mines then
+                                Eliminated
+
+                            else
+                                Survived
 
                         else
-                            Survived
+                            DidNotPlay
+                    , mines = prevRound.mines
+                    , playerChoice =
+                        if participated then
+                            Just choice
 
-                    else
-                        DidNotPlay
-                , mines = prevRound.mines
-                , playerChoice = Just choice
-                , counts = prevRound.counts
-                , round = playData.round - 1
-                }
+                        else
+                            Nothing
+                    , counts = prevRound.counts
+                    , round = previousRound
+                    }
+                        |> Just
+                )
+
+
+fetchBoard : String -> Task Http.Error BoardData
+fetchBoard spectatorId =
+    Mineral.Api.getBoardStatusTask { body = spectatorId }
+        |> Task.mapError Utils.convertError
+
+
+fetchPlayer : String -> String -> Task Http.Error Commit
+fetchPlayer _ w =
+    Mineral.Api.getPlayerTask { params = { id = w } }
+        |> Task.mapError Utils.convertError
+        |> Task.andThen
+            (convertNullable
+                >> unwrap
+                    (Task.fail (Http.BadStatus 404))
+                    (\body ->
+                        { choice = convertNullable body.choice
+                        , game = body.game
+                        , round = body.round
+                        }
+                            |> Task.succeed
+                    )
             )
 
 
-fetchBoard : String -> String -> Task Http.Error BoardData
-fetchBoard backend spectatorId =
-    Http.task
-        { method = "POST"
-        , headers = []
-        , url = backend ++ "/status"
-        , body =
-            JE.string spectatorId
-                |> Http.jsonBody
-        , resolver =
-            JD.map2 BoardData
-                (JD.field "board" (JD.list JD.int))
-                (JD.field "spectators" JD.int)
-                |> Helpers.Http.jsonResolver
-        , timeout = Nothing
-        }
-
-
-getRequest : String -> JD.Decoder a -> Task Http.Error a
-getRequest =
-    request "GET"
-
-
-request : String -> String -> JD.Decoder a -> Task Http.Error a
-request method url jd =
-    Http.task
-        { method = method
-        , headers = []
-        , url = url
-        , body = Http.emptyBody
-        , resolver = Helpers.Http.jsonResolver jd
-        , timeout = Nothing
-        }
-
-
-parsePlayingData : Board -> Maybe ( Board, PlayingData )
-parsePlayingData board =
-    case board.status of
-        Playing data ->
-            Just ( board, data )
-
-        _ ->
-            Nothing
+fetchRegistration : String -> Task Http.Error PlayerStatus
+fetchRegistration w =
+    Mineral.Api.getPlayerStakeTask { params = { id = w } }
+        |> Task.map
+            (\body ->
+                { registration =
+                    body.registration
+                        |> convertNullable
+                        |> Maybe.map
+                            (\c ->
+                                { choice = convertNullable c.choice
+                                , game = c.game
+                                , round = c.round
+                                }
+                            )
+                , stake = convertNullable body.stake
+                }
+            )
+        |> Task.mapError Utils.convertError
 
 
 validatePlayerAgainstGame : PlayingData -> Commit -> Board -> Bool
-validatePlayerAgainstGame data player board =
+validatePlayerAgainstGame game player board =
     let
-        roundMatch =
+        gameMatch =
             board.game == player.game
 
-        stillInPlay =
-            (data.round == player.round)
-                || ((player.round == data.round - 1)
-                        && (Maybe.map2
-                                (\choice prev ->
-                                    prev.status
-                                        == "wipeout"
-                                        || (List.member choice prev.mines
-                                                |> not
-                                           )
-                                )
-                                player.choice
-                                board.previousRound
-                                |> Maybe.withDefault False
-                           )
+        roundMatch =
+            game.round == player.round
+
+        survivedPrevious =
+            (player.round == game.round - 1)
+                && (Maybe.map2
+                        (\choice prev ->
+                            prev.status
+                                == RoundWipeout
+                                || (List.member choice prev.mines
+                                        |> not
+                                   )
+                        )
+                        -- ensure chose in previous round
+                        player.choice
+                        board.previousRound
+                        |> Maybe.withDefault False
                    )
     in
-    roundMatch && stillInPlay
+    gameMatch && (roundMatch || survivedPrevious)
 
 
 decodeGameStatus statusData =
@@ -864,18 +971,3 @@ decodeGameStatus statusData =
 
         _ ->
             Err "what"
-
-
-generateDemoMines =
-    Time.now
-        |> Task.map
-            (Time.posixToMillis
-                >> Random.initialSeed
-                >> Random.step
-                    (Random.map2 Ports.Choice
-                        (Random.int 0 19)
-                        (Random.int 0 19)
-                        |> Random.list 70
-                    )
-                >> Tuple.first
-            )
