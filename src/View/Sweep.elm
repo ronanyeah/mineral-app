@@ -858,14 +858,9 @@ timeDifference now start =
             String.fromInt days
                 ++ " days"
 
-        else if hours > 0 then
+        else if hours > 1 then
             String.fromInt hours
-                ++ (if hours == 1 then
-                        " hour"
-
-                    else
-                        " hours"
-                   )
+                ++ " hours"
 
         else if minutes > 1 then
             String.fromInt minutes
