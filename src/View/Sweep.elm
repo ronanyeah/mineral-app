@@ -652,8 +652,9 @@ viewGameStats model board =
                                                     Just GoToBoard
                                                 )
                                                 [ centerX ]
-                                        , "Requires holding a $MINE balance."
-                                            |> para [ Font.size 17, Font.italic, Font.center ]
+
+                                        --, "Requires holding a $MINE balance."
+                                        --|> para [ Font.size 17, Font.italic, Font.center ]
                                         ]
                                             |> column [ spacing 10, centerX ]
 
