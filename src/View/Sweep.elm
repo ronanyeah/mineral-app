@@ -42,16 +42,12 @@ viewDash model ctrl =
             |> column [ spacing 0 ]
       ]
         |> row [ spacing 20, centerX ]
-    , [ [ [ text "MINESWEEP"
-                |> el [ headerFont, Font.size 24 ]
-          , text " is a massively multiplayer onchain game, powered by the Sui blockchain."
-          ]
-            |> paragraph [ Font.center ]
-        , para [ Font.center ] "Also can be watched by anonymous spectators, worldwide."
+    , [ [ text "MINESWEEP"
+            |> el [ headerFont, Font.size 20 ]
+        , text " is a LIVE mass-multiplayer onchain game, open to all players and spectators."
         ]
-            |> column [ spacing 20, fadeIn ]
+            |> paragraph [ Font.center, fadeIn, Font.size 17 ]
             |> when (model.sweepView == SweepHome)
-            |> when False
       , ctrl
             |> Maybe.withDefault (spinner 30 |> el [ centerX ])
       ]
